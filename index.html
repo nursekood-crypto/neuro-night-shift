@@ -1,0 +1,1187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body>
+<title>Neuro Unit Night Shift</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one narrow "chart on a clipboard" column under a sticky ward status bar; a corridor of 5 doors marks progress. Deliberately single dark theme: a hospital ward at night. */
+:root{
+  --night:#0d1822; --panel:#13222e; --panel2:#1a2e3d; --line:#294456;
+  --ink:#e4edf1; --muted:#8ea7b5; --amber:#f0b440; --amber-ink:#2a1d04;
+  --cyan:#62d3df; --good:#5bd08f; --bad:#ff7a70;
+  --f-display:"Chakra Petch","Segoe UI",system-ui,sans-serif;
+  --f-body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --f-ar:"IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--night);color:var(--ink)}
+body{font-family:var(--f-body);font-size:16px;line-height:1.55;min-height:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+.wrap{max-width:760px;margin:0 auto;padding-block:20px 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap.wide{max-width:1240px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:.01em}
+h1{font-size:clamp(2rem,6vw,3rem);line-height:1.05}
+h2{font-size:1.45rem;line-height:1.2}
+h3{font-size:1.1rem}
+p{margin:0}
+.label{font-family:var(--f-display);font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.stack{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px}
+button{font:inherit;cursor:pointer}
+.btn{font-family:var(--f-display);font-weight:600;font-size:1rem;letter-spacing:.04em;border:0;border-radius:8px;padding:12px 20px;background:var(--amber);color:var(--amber-ink)}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.small{padding:8px 14px;font-size:.88rem}
+:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}
+input[type=text],textarea,select{font:inherit;color:var(--ink);background:var(--night);border:1px solid var(--line);border-radius:8px;padding:11px 12px;width:100%}
+textarea{font-family:var(--f-mono);font-size:.82rem;min-height:120px;resize:vertical}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-weight:700}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em}
+a{color:var(--cyan)}
+.linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;padding:4px;font-size:.9rem}
+
+/* start */
+.hero{display:grid;gap:18px;padding-block:12px 8px}
+.hero .tag{display:inline-flex;gap:10px;align-items:center;font-family:var(--f-mono);font-size:.8rem;color:var(--cyan)}
+.hero .tag::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 4px rgba(255,122,112,.18);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 8px rgba(255,122,112,0)}}
+.lede{font-size:1.08rem;max-width:60ch;color:#cfdce3}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.rule{border-top:2px solid var(--amber);padding-top:8px}
+.rule b{display:block;font-family:var(--f-mono);font-size:1.15rem}
+.rule span{font-size:.88rem;color:var(--muted)}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+
+/* status bar */
+.status{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:1px solid var(--line)}
+.status .in{max-width:760px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.clock{font-family:var(--f-mono);font-size:1.35rem;font-weight:600;color:var(--cyan)}
+.clock.low{color:var(--bad)}
+.pts{font-family:var(--f-mono);font-size:1rem}
+.corridor{display:flex;gap:6px;flex:1 1 220px;max-width:340px}
+.door{flex:1;height:30px;border:1px solid var(--line);border-radius:4px 4px 0 0;display:grid;place-items:center;font-family:var(--f-display);font-size:.78rem;color:var(--muted);background:var(--night);position:relative}
+.door.done{background:rgba(91,208,143,.14);border-color:var(--good);color:var(--good)}
+.door.here{border-color:var(--amber);color:var(--amber);background:rgba(240,180,64,.1)}
+
+/* game */
+.roomhead{display:grid;gap:4px}
+/* door sign */
+.sign{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:12px;padding:14px 16px;position:relative;overflow:hidden}
+.sign .ic{width:64px;height:64px;border-radius:12px;display:grid;place-items:center;color:var(--rc);background:color-mix(in srgb,var(--rc) 14%,transparent);border:1px solid color-mix(in srgb,var(--rc) 45%,transparent)}
+.sign .ic svg{width:42px;height:42px}
+.sign .num{position:absolute;right:12px;bottom:-10px;font-family:var(--f-display);font-size:3rem;z-index:0;pointer-events:none;font-weight:700;color:color-mix(in srgb,var(--rc) 18%,transparent);line-height:1}
+.sign h2{color:var(--ink)} .sign>*{position:relative;z-index:1} .sign>.num{position:absolute;z-index:0} .sign .label{color:var(--rc)}
+/* patient chart */
+.chart{background:#eef3f4;color:#15232c;border-radius:12px;overflow:hidden;border-left:6px solid var(--rc)}
+.chart .top{display:grid;grid-template-columns:88px 1fr;gap:14px;padding:14px 16px 12px;align-items:center}
+.av{width:88px;height:88px;display:block;border-radius:50%;box-shadow:0 0 0 3px #fff,0 0 0 4px #c7d3d8}
+.chart .nm{font-family:var(--f-display);font-size:1.3rem;font-weight:700;line-height:1.1}
+.chart .meta{font-family:var(--f-mono);font-size:.78rem;color:#4b6270;margin-top:2px}
+.chart .dx{font-weight:700;margin-top:6px;font-size:.95rem}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.chip{font-size:.74rem;font-weight:700;padding:2px 8px;border-radius:999px;background:#dbe5e8;color:#2d4552}
+.chip.alert{background:#ffe1dc;color:#9a2b1c}
+.bubble{margin:0 16px 14px;background:#fff;border:1px solid #d3dee2;border-radius:12px;padding:10px 14px;position:relative;font-size:.96rem}
+.bubble::before{content:"";position:absolute;left:34px;top:-8px;width:14px;height:14px;background:#fff;border-left:1px solid #d3dee2;border-top:1px solid #d3dee2;transform:rotate(45deg)}
+.bubble q{font-style:italic}
+.bubble .by{display:block;font-size:.76rem;color:#5d7380;margin-top:4px;font-family:var(--f-mono)}
+.charts{display:grid;gap:12px}
+@media (min-width:700px){.charts.two{grid-template-columns:1fr 1fr}}
+/* small icons */
+.ti{display:inline-flex;gap:6px;align-items:center}
+.ti svg{width:16px;height:16px}
+.ecg{display:block;width:100%;height:42px;margin-bottom:6px}
+.ecg path{stroke:var(--good);stroke-width:2;fill:none;stroke-dasharray:6 900;stroke-dashoffset:0;filter:drop-shadow(0 0 3px rgba(91,208,143,.6))}
+.ecg .trace{stroke-dasharray:none;opacity:.25}
+.ecg .dot{animation:sweep 3.33s linear infinite}
+@keyframes sweep{from{stroke-dashoffset:0}to{stroke-dashoffset:-906}}
+.hero.center{justify-items:center;text-align:center}
+.hero.center .lede{margin-inline:auto}
+h1.title{font-size:clamp(3rem,13vw,5.6rem);line-height:.95;letter-spacing:.02em;text-transform:uppercase;text-shadow:0 0 28px rgba(98,211,223,.25)}
+#corrArt{width:100%}
+.corr{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line)}
+.ill{width:150px;height:auto}
+.patients{display:flex;flex-direction:column;gap:8px}
+.prog{font-family:var(--f-mono);font-size:.82rem;color:var(--muted)}
+.prompt{font-size:1.12rem;font-weight:700}
+.opts{display:grid;gap:10px}
+.opt{text-align:left;border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:8px;padding:13px 14px;display:flex;gap:12px;align-items:flex-start}
+.opt .k{font-family:var(--f-mono);color:var(--muted);min-width:1.4em}
+.opt:hover:not(:disabled){border-color:var(--cyan)}
+.opt.sel{border-color:var(--amber);background:rgba(240,180,64,.12)}
+.opt.ok{border-color:var(--good);background:rgba(91,208,143,.14)}
+.opt.no{border-color:var(--bad);background:rgba(255,122,112,.12)}
+.opt:disabled{cursor:default}
+.monitor{background:#050c10;border:1px solid #1f3a45;border-radius:8px;padding:12px;overflow-x:auto}
+.monitor table{border-collapse:collapse;width:100%;font-family:var(--f-mono);font-size:.9rem;min-width:420px}
+.monitor th{color:#5b7c88;font-weight:400;text-align:left;padding:4px 8px;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em}
+.monitor td{padding:6px 8px;border-top:1px solid #12262e;color:var(--cyan)}
+.monitor td.hr{color:var(--good)} .monitor td.bp{color:#ff9d6e} .monitor td.rr{color:#e9e48a}
+.match{display:grid;gap:10px}
+.mrow{display:grid;grid-template-columns:1fr minmax(160px,40%);gap:10px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.mrow .t{min-width:0}
+.mrow.ok{border-color:var(--good)} .mrow.no{border-color:var(--bad)}
+.mrow .fix{grid-column:1/-1;font-size:.88rem;color:var(--good)}
+@media (max-width:520px){.mrow{grid-template-columns:1fr}}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:280px}
+.keypad button{font-family:var(--f-mono);font-size:1.25rem;padding:14px 0;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
+.keypad button:hover{border-color:var(--amber)}
+.lcd{font-family:var(--f-mono);font-size:2rem;letter-spacing:.3em;background:#050c10;color:var(--amber);border:1px solid #3a3017;border-radius:8px;padding:10px 16px;max-width:280px;min-height:64px}
+.clues{display:grid;gap:8px;counter-reset:c}
+.clue{border-left:3px solid var(--cyan);background:var(--panel2);padding:10px 12px;border-radius:0 8px 8px 0}
+.clue::before{counter-increment:c;content:"Clue " counter(c);display:block;font-family:var(--f-display);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
+.msg{border-radius:8px;padding:12px 14px;font-size:.98rem}
+.msg.warn{background:rgba(255,122,112,.12);border:1px solid rgba(255,122,112,.5)}
+.msg.hint{background:rgba(98,211,223,.1);border:1px solid rgba(98,211,223,.45)}
+.fb{border-radius:10px;padding:16px;display:grid;gap:8px}
+.fb.ok{background:rgba(91,208,143,.12);border:1px solid var(--good)}
+.fb.no{background:rgba(255,122,112,.1);border:1px solid var(--bad)}
+.fb h3{font-size:1.05rem}
+.unlock{text-align:center;display:grid;gap:14px;justify-items:center;padding:34px 20px}
+.lock{animation:pop .5s ease-out}
+@keyframes pop{from{transform:scale(.6);opacity:.2}}
+
+/* end */
+.big{font-family:var(--f-mono);font-size:clamp(2.4rem,9vw,3.6rem);font-weight:600;line-height:1}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.stat{border-top:2px solid var(--line);padding-top:8px}
+.stat b{font-family:var(--f-mono);font-size:1.4rem;display:block}
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:minmax(110px,32%) 1fr 64px;gap:10px;align-items:center;font-size:.92rem}
+.bar .tr{height:10px;background:var(--night);border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+.bar .fl{height:100%;background:var(--amber)}
+.codebox{font-family:var(--f-mono);font-size:.78rem;word-break:break-all;background:var(--night);border:1px dashed var(--amber);border-radius:8px;padding:12px;user-select:all}
+.review{display:grid;gap:10px}
+.review .it{border-left:3px solid var(--bad);padding:4px 0 4px 12px}
+.review .it.h{border-left-color:var(--cyan)}
+.saved{font-size:.9rem;color:var(--muted)}
+.saved.ok{color:var(--good)}
+
+/* survey */
+.lik{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:14px}
+.lik .q{font-weight:700}
+.scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.scale button{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:8px;padding:10px 4px;font-family:var(--f-mono);font-size:1.05rem}
+.scale button:hover{border-color:var(--cyan)}
+.scale button[aria-checked="true"]{background:var(--amber);color:var(--amber-ink);border-color:var(--amber);font-weight:600}
+.ends{display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted)}
+.count{font-size:.8rem;color:var(--muted);text-align:right}
+.comments{display:grid;gap:8px}
+.comments blockquote{margin:0;border-left:3px solid var(--cyan);padding:6px 12px;background:var(--panel2);border-radius:0 8px 8px 0}
+.comments cite{display:block;font-style:normal;font-size:.78rem;color:var(--muted);font-family:var(--f-mono);margin-top:2px}
+[lang="ar"]{font-family:var(--f-ar)}
+[lang="ar"] h1,[lang="ar"] h2,[lang="ar"] h3,[lang="ar"] .btn{font-family:var(--f-ar);letter-spacing:0}
+.sgroup{display:grid;gap:4px;padding-top:6px}
+.sgroup h3{font-family:var(--f-ar);color:var(--amber);font-size:1.15rem;border-bottom:1px solid var(--line);padding-bottom:6px}
+.legend{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;font-size:.78rem;color:var(--muted);text-align:center;position:sticky;top:env(safe-area-inset-top,0px);background:var(--panel);padding:10px 0;z-index:2;border-bottom:1px solid var(--line)}
+.legend b{display:block;font-family:var(--f-mono);font-size:1rem;color:var(--ink)}
+.sprog{font-size:.9rem;color:var(--muted)}
+.lik.missing .q{color:var(--bad)}
+.ar{font-family:var(--f-ar)}
+.sndbar{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:15;display:flex;gap:8px}
+.snd{display:inline-flex;gap:8px;align-items:center;font-family:var(--f-display);font-weight:600;font-size:.85rem;letter-spacing:.04em;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.snd svg{width:18px;height:18px}
+@media (max-width:420px){.snd span{display:none}.snd{padding:11px}}
+.snd[aria-pressed="false"]{color:var(--muted)}
+.snd:hover{border-color:var(--cyan)}
+/* teacher */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table.res{border-collapse:collapse;width:100%;min-width:920px;font-size:.88rem}
+table.res th{font-family:var(--f-display);font-weight:600;text-align:left;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--panel2);padding:10px;white-space:nowrap}
+table.res td{padding:9px 10px;white-space:nowrap;border-top:1px solid var(--line);vertical-align:top;font-variant-numeric:tabular-nums}
+table.res tr.main{cursor:pointer}
+table.res tr.main:hover td{background:rgba(255,255,255,.03)}
+.pill{display:inline-block;font-size:.75rem;font-family:var(--f-display);letter-spacing:.06em;padding:2px 8px;border-radius:999px;border:1px solid}
+.pill.e{color:var(--good);border-color:var(--good)} .pill.t{color:var(--bad);border-color:var(--bad)} .pill.p{color:var(--amber);border-color:var(--amber)}
+.pill.warn{color:var(--bad);border-color:var(--bad)}
+.detail td{background:var(--night);white-space:normal!important}
+.detail .dgrid{display:grid;gap:12px;max-width:min(720px,calc(100vw - 64px))}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--night);padding:10px 16px;border-radius:8px;font-weight:700;z-index:20}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div id="statusbar" class="status" hidden>
+  <div class="in">
+    <div class="corridor" id="corridor" aria-label="Rooms"></div>
+    <div class="row" style="gap:18px">
+      <span class="pts" id="ptsLabel">0 pts</span>
+      <span class="clock" id="clock" aria-live="off">20:00</span>
+    </div>
+  </div>
+</div>
+
+<div class="sndbar" role="group" aria-label="Audio"><button class="snd" id="musBtn" type="button" aria-pressed="true"></button><button class="snd" id="sndBtn" type="button" aria-pressed="true"></button></div>
+<main class="wrap" id="app">
+
+  <!-- START -->
+  <section id="s-start" class="stack" hidden>
+    <div class="hero center">
+      <span class="tag">NURS 314 · ADULT HEALTH NURSING II · NEURO BLOCK</span>
+      <h1 class="title">Neuro Unit<br>Night Shift</h1>
+      <div id="corrArt"></div>
+      <p class="lede">It's 2 a.m. on the neuro unit and the doors have locked behind you. Five rooms, five patients. Make the right clinical call in each room to unlock the next door. You have 20 minutes to get out.</p>
+    </div>
+    <div class="rules">
+      <div class="rule"><b>20:00</b><span>Countdown starts when you enter</span></div>
+      <div class="rule"><b>10 pts</b><span>For each puzzle solved first try</span></div>
+      <div class="rule"><b>−4</b><span>For each wrong attempt (2 tries, then the answer is shown)</span></div>
+      <div class="rule"><b>−3</b><span>For using a hint</span></div>
+    </div>
+    <form class="card stack" id="loginForm" novalidate>
+      <h2>Sign in to your shift</h2>
+      <div class="form">
+        <div class="field"><label for="fId">Student ID</label><input type="text" id="fId" inputmode="numeric" autocomplete="off" placeholder="e.g. 443201234"></div>
+        <div class="field"><label for="fGroup">Group number</label><input type="text" id="fGroup" autocomplete="off" placeholder="e.g. 3"></div>
+        <div class="field"><label for="fInst">Instructor's name</label><input type="text" id="fInst" autocomplete="off" placeholder="e.g. Ms. Khulud"></div>
+      </div>
+      <div class="err" id="loginErr"></div>
+      <div class="row">
+        <button class="btn" type="submit">Enter the unit</button>
+        <button class="btn ghost" type="button" id="resumeBtn" hidden>Resume my game</button>
+        <button class="btn ghost" type="button" id="lastBtn" hidden>See my last result</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- GAME -->
+  <section id="s-game" class="stack" hidden></section>
+
+  <!-- SURVEY -->
+  <section id="s-survey" class="stack" hidden></section>
+
+  <!-- END -->
+  <section id="s-end" class="stack" hidden></section>
+
+  <!-- TEACHER -->
+  <section id="s-teacher" class="stack" hidden>
+    <div class="row" style="justify-content:space-between">
+      <div class="roomhead"><span class="label">Instructor view</span><h2>Neuro Unit results</h2></div>
+      <button class="btn ghost small" id="backStart" type="button">Back to game</button>
+    </div>
+    <div class="card stack" id="liveCard">
+      <h3>Saved automatically</h3>
+      <p id="liveNote" class="saved">Checking for saved results…</p>
+    </div>
+    <div class="card stack">
+      <h3>Add results codes</h3>
+      <p class="saved">Every student gets a results code on the last screen. Paste the codes students sent you, one per line or all together, then press <b>Add codes</b>.</p>
+      <textarea id="codesIn" placeholder="N314-eyJ2Ijox…"></textarea>
+      <div class="row"><button class="btn small" id="addCodes" type="button">Add codes</button><span id="codeMsg" class="saved"></span></div>
+    </div>
+    <div class="row" style="justify-content:space-between">
+      <div class="row">
+        <label for="grpFilter" class="label">Group</label>
+        <select id="grpFilter" style="width:auto"><option value="">All groups</option></select>
+        <span id="rowCount" class="saved"></span>
+      </div>
+      <div class="row">
+        <button class="btn small" id="dlCsv" type="button">Download CSV</button>
+        <button class="btn ghost small" id="cpCsv" type="button">Copy as table</button>
+      </div>
+    </div>
+    <div class="card stack" id="surveyCard" hidden></div>
+    <div class="tablewrap">
+      <table class="res">
+        <thead><tr><th>Student ID</th><th>Group</th><th>Instructor</th><th>Entered</th><th>Left</th><th>Time used</th><th>Score</th><th>Grade</th><th>Result</th><th>Mistakes</th><th>Hints</th></tr></thead>
+        <tbody id="resBody"><tr><td colspan="11" class="saved" style="padding:18px">No results yet. Saved results and pasted codes appear here. Click a row to see the feedback that student received.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------- CONTENT (from NURS 314 Weeks 8, 10, 11 slides) ---------------- */
+const ROOMS = [
+ { title:"The Pressure Room", unit:"Neuro ICU · Bed 4",
+   intro:"Mr. Fahad's monitor has been alarming all evening. Read his chart and stabilize him to unlock the door.",
+   patients:[{name:"Fahad A.", age:"45 · M", bed:"ICU 4", mrn:"MRN 204 118", dx:"Traumatic brain injury, day 2", tags:["ICP catheter","NKDA"], says:"He was talking to his wife this morning. Now he only opens his eyes to pain.", by:"Day-shift nurse at handoff", av:{skin:"#b9825a",bg:"#2c4a5c",hair:"#2a1d16",beard:"#2a1d16",eyes:"closed",brows:"flat",mouth:"flat",bandage:1}}],
+   puzzles:[
+   { id:"r1-cushing", title:"Cushing triad", type:"mcq",
+     monitor:[["18:00","128/82","86","16 · regular"],["20:00","154/76","70","14 · regular"],["22:00","182/64","54","irregular, pauses"]],
+     prompt:"Look at Mr. Fahad's vital-sign trend. What is it telling you?",
+     options:["Hypovolemic shock; he needs a fluid bolus","Cushing triad; his intracranial pressure is rising","An expected pain response after head injury","Septic shock from the ICP catheter"], answer:1,
+     hint:"Watch the gap between systolic and diastolic pressure, and what the heart rate does.",
+     explain:"Rising systolic BP with a widening pulse pressure, bradycardia and irregular respirations is the Cushing triad, a late sign of increased ICP. Shock gives the opposite pattern: low BP and a fast heart rate." },
+   { id:"r1-lowericp", title:"Nursing actions that lower ICP", type:"multi",
+     prompt:"The neurosurgeon is on the way. Select ALL the nursing actions that help lower Mr. Fahad's ICP.",
+     options:["Keep the head of the bed elevated","Encourage him to cough forcefully to clear secretions","Keep his head and neck in midline, with nothing compressing the jugular veins","Teach isometric leg exercises to prevent clots","Provide a quiet room and limit noxious stimuli","Prevent constipation and bladder distension"], correct:[0,2,4,5],
+     hint:"Anything that raises pressure in the chest or abdomen also raises ICP.",
+     explain:"Elevating the head of the bed and keeping the head midline help venous drainage from the brain. A quiet room limits stimuli that raise ICP. Coughing, straining, nose blowing, pushing against bed rails and isometric exercise all raise ICP, and so do constipation and a full bladder." },
+   { id:"r1-gcs", title:"GCS threshold for ICP monitoring", type:"code",
+     prompt:"The ICP monitoring cabinet is locked. Keypad: enter the Glasgow Coma Scale score at or below which ICP monitoring is indicated.", answer:"8",
+     hint:"It's the same GCS cut-off that is usually used to describe coma.",
+     explain:"ICP monitoring is indicated for a GCS of 8 or less. Devices include an epidural probe, a subarachnoid bolt or screw, and an intraventricular catheter." },
+   { id:"r1-infection", title:"Infection prevention with ICP device", type:"mcq",
+     prompt:"Mr. Fahad has an intraventricular catheter. Which action best prevents infection?",
+     options:["Irrigate the catheter with saline every hour","Keep the dressing moist with sterile saline","Use strict aseptic technique and hand hygiene every time you touch the device","Lay the bed flat during every dressing change"], answer:2,
+     hint:"Who carries most hospital-acquired infections to the patient?",
+     explain:"Most healthcare-associated infections are carried by staff who skip hand hygiene, glove changes or aseptic technique. Keep the dressing dry, and watch the insertion site for CSF leak, drainage and signs of infection (fever, chills, rising WBC)." }
+ ]},
+ { title:"Seizure Bay", unit:"Neuro Ward · Bed 9",
+   intro:"Ms. Noura was admitted after missing several doses of her antiepileptic medication. As you walk in, her eyes roll back.",
+   patients:[{name:"Noura S.", age:"28 · F", bed:"Ward 9", mrn:"MRN 311 507", dx:"Epilepsy, missed antiepileptic doses", tags:["Seizure precautions","NKDA"], says:"I ran out of my pills last week. And I keep smelling something burning…", by:"Noura, a minute ago", av:{skin:"#c99069",bg:"#4a3a5c",hijab:"#3d6b78",eyes:"up",brows:"worried",mouth:"open",zaps:1}}],
+   puzzles:[
+   { id:"r2-firstaid", title:"Safe care during a seizure", type:"multi",
+     prompt:"Noura suddenly loses consciousness, stiffens and starts jerking. Select ALL the safe actions.",
+     options:["Turn her onto her side","Insert a padded tongue blade between her teeth","Loosen clothing around her neck","Hold her arms and legs down to stop the jerking","Cushion her head","Give oxygen by mask if prescribed"], correct:[0,2,4,5],
+     hint:"Protect the airway and protect her from injury. Never fight the seizure.",
+     explain:"Turning her onto her side lets secretions drain. Loosen tight clothing and cushion the head. Never force anything into the mouth: a tongue blade can block the airway. Don't hold the patient down, because restraint can cause injury." },
+   { id:"r2-phases", title:"Seizure phases", type:"match",
+     prompt:"Match each observation to the right seizure phase or type.",
+     choices:["Tonic phase","Clonic phase","Postictal phase","Absence seizure"],
+     items:[["Sudden loss of consciousness, rigid arched body, epileptic cry, cyanosis",0],["Rhythmic contraction and relaxation of the limbs, frothing at the mouth",1],["Slowly waking up, confused, headache and muscle aches, no memory of the event",2],["A few seconds of blank staring with eyelid fluttering; all activity stops",3]],
+     hint:"Tonic means stiff and clonic means jerking. Postictal is what comes after.",
+     explain:"Tonic phase: loss of consciousness, rigid muscles, opisthotonic posture, cry, apnea and cyanosis. Clonic phase: contraction and relaxation of the limbs, hyperventilation, frothing. Postictal phase: confusion, headache, fatigue, amnesia. Absence seizure: a brief blank stare and eyelid fluttering, with no motor activity." },
+   { id:"r2-status", title:"Status epilepticus", type:"mcq",
+     prompt:"The seizure has now lasted 6 minutes, with only short pauses between episodes. What is happening, and what is your priority?",
+     options:["A normal tonic-clonic seizure; wait for it to end","Postictal phase; let her sleep","Status epilepticus; establish and maintain the airway","A focal seizure; document it and reassess in 30 minutes"], answer:2,
+     hint:"Think about the 5-minute rule.",
+     explain:"Seizure activity lasting more than 5 minutes is status epilepticus, a life-threatening emergency that can cause hypoxia, acidosis, hypoglycemia and exhaustion. The airway comes first. Expected drugs include lorazepam or diazepam, phenytoin, phenobarbital and dextrose." },
+   { id:"r2-teach", title:"Seizure discharge teaching", type:"mcq",
+     prompt:"Before discharge, which statement from Noura shows she needs MORE teaching?",
+     options:["\"I will wear my medical alert band all the time.\"","\"I'll avoid alcohol and cut down on coffee.\"","\"My family will call for help if a seizure lasts more than 5 minutes.\"","\"I'll relax in a long hot bath every evening.\""], answer:3,
+     hint:"Which activity becomes dangerous if a generalized seizure happens during it?",
+     explain:"Showers are safer than tub baths because a generalized seizure in the bath can lead to drowning. The other three statements are correct teaching." },
+   { id:"r2-headache", title:"Cluster vs. migraine headache", type:"detective",
+     prompt:"A man in the corridor is clutching his head. Reveal only the clues you need, then name the headache. Each extra clue costs 2 points.",
+     clues:["Man, 35. The pain woke him up about 2 hours after he fell asleep.","Severe, burning pain behind his RIGHT eye only.","His right eye is tearing and his nose is running.","He has had attacks every night for the past 3 weeks."],
+     options:["Migraine with aura","Cluster headache","Headache from increased ICP","Trigeminal neuralgia"], answer:1,
+     hint:"Which headache comes in nightly groups for weeks, then goes into remission?",
+     explain:"Cluster headache: severe, burning, one-sided pain behind or around one eye, starting 2–3 hours after falling asleep, coming in daily clusters for weeks, with tearing, a runny nose, flushing, miosis or ptosis. Migraine is throbbing, lasts 4–72 hours, and comes with nausea and sensitivity to light and sound." }
+ ]},
+ { title:"Isolation Room", unit:"Neuro Ward · Isolation 2",
+   intro:"A university student was brought in from his dormitory with fever and a terrible headache. Work out what he has before it spreads.",
+   patients:[{name:"Omar K.", age:"19 · M", bed:"Isolation 2", mrn:"MRN 422 090", dx:"Fever, severe headache, vomiting", tags:["Precautions pending","Temp 39.6 °C"], says:"Please turn off the light. It hurts my eyes, and I can't bend my neck.", by:"Omar", av:{skin:"#a8714b",bg:"#5c2f2f",hair:"#1b1410",eyes:"squint",brows:"worried",mouth:"flat",mask:1,fever:1}}],
+   puzzles:[
+   { id:"r3-diagnosis", title:"Bacterial meningitis (CSF findings)", type:"detective",
+     prompt:"Reveal only the clues you need, then name Omar's condition. Each extra clue costs 2 points.",
+     clues:["Fever of 39.6 °C with chills, severe headache and vomiting.","Neck stiffness and photophobia. Positive Kernig and Brudzinski signs.","He shares a dormitory room with three other students.","Lumbar puncture: cloudy CSF, very high WBC and protein, LOW glucose, high opening pressure."],
+     options:["Viral meningitis","Viral encephalitis","Bacterial meningitis","Bell palsy"], answer:2,
+     hint:"Cloudy CSF with low glucose means bacteria are using up the sugar.",
+     explain:"Cloudy CSF with markedly raised WBC and protein, low glucose and a high opening pressure means bacterial meningitis. Viral meningitis is milder, and encephalitis usually shows a normal CSF analysis. Crowded living (dormitories, military bases) is a major risk factor." },
+   { id:"r3-signs", title:"Kernig and Brudzinski signs", type:"match",
+     prompt:"Match each bedside assessment to what it tests or shows.",
+     choices:["Positive Brudzinski sign","Positive Kernig sign","Babinski reflex test","Doll's-eyes reflex test"],
+     items:[["Patient supine; you flex the neck toward the chest and the hips and knees flex",0],["Hip and knee flexed, then you straighten the knee; the patient has pain and resistance",1],["You stroke the sole of the foot with a blunt object",2],["You turn the head from side to side and watch which way the eyes move",3]],
+     hint:"Brudzinski: think Bending the neck. Kernig: think Knee.",
+     explain:"Brudzinski: flexing the neck causes hip and knee flexion or pain. Kernig: with the hip and knee flexed, straightening the knee causes pain or resistance. Both point to meningeal irritation. The Babinski test uses the sole of the foot, and the doll's-eyes reflex tests eye movement when the head is turned." },
+   { id:"r3-meds", title:"CNS infection medications", type:"match",
+     prompt:"Match each medication order to its purpose.",
+     choices:["Bacterial meningitis","Viral encephalitis","Fungal meningitis","Suppress inflammation"],
+     items:[["IV vancomycin plus ceftriaxone, started immediately",0],["IV acyclovir",1],["Amphotericin B",2],["Dexamethasone given with the antibiotics",3]],
+     hint:"Acyclovir is an antiviral, amphotericin B is an antifungal, and dexamethasone is a steroid.",
+     explain:"Bacterial meningitis: start broad-spectrum IV antibiotics right away (vancomycin plus a cephalosporin such as ceftriaxone), then switch to a specific antibiotic once cultures are back. Dexamethasone suppresses inflammation. Viral encephalitis: IV acyclovir. Fungal meningitis: amphotericin B." },
+   { id:"r3-precautions", title:"Seizure precautions in meningitis", type:"multi",
+     prompt:"Meningeal inflammation is irritating Omar's cortex, so seizure precautions are ordered. Select ALL that apply.",
+     options:["Bed in the low position with the side rails up","Restrain his wrists to prevent injury","Pad the side rails","Have an oral airway and suction ready at the bedside","Tape a padded tongue blade to the headboard","Watch for twitching of the face or hands"], correct:[0,2,3,5],
+     hint:"Precautions prepare the airway and protect him from injury. They never restrain him.",
+     explain:"Seizure precautions: bed low, side rails up and padded, oral airway and suction at the bedside, and watching for facial or hand twitching and tonic-clonic movements. Restraints and tongue blades are unsafe." }
+ ]},
+ { title:"Cranial Nerve Clinic", unit:"Neuro Outpatients · Clinic 4",
+   intro:"Two patients with one-sided facial complaints are waiting. They look alike on paper, but their care is very different.",
+   patients:[{name:"Huda M.", age:"50 · F", bed:"Clinic 4A", mrn:"MRN 118 663", dx:"Sudden left-sided facial weakness", tags:["Onset this morning"], says:"I woke up and my tea spilled out of the side of my mouth.", by:"Huda", av:{skin:"#d3a079",bg:"#2f5244",hijab:"#7a4a5a",eyes:"droop",brows:"droop",mouth:"droop"}},{name:"Saleh R.", age:"61 · M", bed:"Clinic 4B", mrn:"MRN 097 241", dx:"Stabbing right-sided facial pain", tags:["Weight down 4 kg"], says:"Even the wind on my cheek sets it off. I'm afraid to eat.", by:"Saleh", av:{skin:"#b98760",bg:"#4f4a2c",hair:"#c9c6c0",beard:"#d8d5cf",eyes:"squint",brows:"worried",mouth:"frown",hand:1}}],
+   puzzles:[
+   { id:"r4-bell", title:"Bell palsy priority: eye care", type:"mcq",
+     prompt:"Mrs. Huda's left face droops and she cannot close her left eye. She is diagnosed with Bell palsy. What is the priority teaching?",
+     options:["Swallowing exercises","Eye care: artificial tears and an eye patch at night","A schedule for pain medication","Upper-arm strengthening exercises"], answer:1,
+     hint:"What protective reflex has she lost on the affected side?",
+     explain:"Bell palsy can paralyze the upper eyelid and abolish the corneal reflex, so the eye needs artificial tears and a patch at night. Chewing may be hard (swallowing is not), pain usually comes before the paralysis rather than during it, and the arms are not affected." },
+   { id:"r4-sort", title:"Bell palsy vs. trigeminal neuralgia", type:"match",
+     prompt:"Sort each finding: Bell palsy or trigeminal neuralgia?",
+     choices:["Bell palsy","Trigeminal neuralgia"],
+     items:[["Brief, repeated episodes of excruciating facial pain",1],["Paralysis of the upper eyelid and loss of the corneal reflex",0],["Attacks triggered by light touch or eating",1],["Linked to herpes simplex virus type 1",0],["Treated with carbamazepine (Tegretol)",1],["Moist heat, facial massage and a soft diet help",0]],
+     hint:"Bell palsy affects the facial nerve (CN VII), which controls movement. Trigeminal neuralgia affects CN V, which carries sensation, so its main symptom is pain.",
+     explain:"Bell palsy (facial nerve): sudden one-sided weakness, eyelid paralysis, loss of the corneal reflex, often after HSV-1. Treated with antivirals, anti-inflammatories, moist heat, massage and a soft diet. Trigeminal neuralgia: brief, excruciating one-sided pain triggered by touch or eating. Treated with carbamazepine, gabapentin or baclofen, or rhizotomy." },
+   { id:"r4-tn", title:"Trigeminal neuralgia nutrition", type:"mcq",
+     prompt:"Mr. Saleh is losing weight because eating triggers his pain. What should the nurse suggest?",
+     options:["Drink very hot soups to relax the nerve","Massage the painful cheek firmly before meals","Chew on the unaffected side and choose soft foods at a comfortable temperature","Skip meals on days with frequent attacks"], answer:2,
+     hint:"Light touch triggers the pain, so avoid stimulating the affected side.",
+     explain:"Discuss food temperature and consistency, suggest chewing on the unaffected side, and monitor intake and weight at each visit. Tube feeding may be needed. Touching or massaging the trigger zone sets off attacks." },
+   { id:"r4-recovery", title:"Bell palsy prognosis", type:"code",
+     prompt:"Mrs. Huda asks if her face will ever recover. Keypad: enter the percentage of Bell palsy patients who recover completely within weeks to months.", answer:"80",
+     hint:"It's a large majority, between 75 and 85.",
+     explain:"About 80% of patients with Bell palsy recover completely within a few weeks to a few months. Until then, protect the eye, use warm heat and massage, and practise facial movements as function returns." }
+ ]},
+ { title:"The Exit", unit:"Rehabilitation Unit · Exit corridor",
+   intro:"The exit is at the end of this corridor. Two patients with chronic autoimmune neuro disorders need you first.",
+   patients:[{name:"Layla H.", age:"38 · F", bed:"Rehab 2", mrn:"MRN 350 774", dx:"Myasthenia gravis", tags:["Anticholinesterase","SpO₂ 93%"], says:"By evening I can't keep my eyes open, and chewing tires me out.", by:"Layla", av:{skin:"#c48b62",bg:"#2b3f5e",hijab:"#2f2f3a",eyes:"ptosis",brows:"flat",mouth:"flat"}},{name:"Khalid T.", age:"32 · M", bed:"Rehab 5", mrn:"MRN 366 012", dx:"Multiple sclerosis, relapsing", tags:["Fatigue","Walks with a cane"], says:"I'm fine in the morning, but after a hot shower I'm done for the day.", by:"Khalid", av:{skin:"#9c6a46",bg:"#3c5a3a",hair:"#1d1612",beard:"#1d1612",eyes:"tired",brows:"flat",mouth:"flat",zz:1}}],
+   puzzles:[
+   { id:"r5-crisis", title:"Myasthenic vs. cholinergic crisis", type:"match",
+     prompt:"Layla is getting weaker and short of breath. Sort each clue: myasthenic crisis or cholinergic crisis?",
+     choices:["Myasthenic crisis","Cholinergic crisis"],
+     items:[["She missed several doses of her medication",0],["She took extra doses of her anticholinesterase",1],["She is developing a chest infection",0],["Abdominal cramps, diarrhea and other GI symptoms",1],["Vertigo",1],["Tachycardia, tachypnea, restlessness and anxiety",0]],
+     hint:"Too little medication or an infection causes myasthenic crisis. Too much medication causes cholinergic crisis.",
+     explain:"Myasthenic crisis comes from undermedication, missed doses or infection, and causes tachycardia, tachypnea, severe respiratory distress, dysphagia, restlessness and anxiety. Cholinergic crisis comes from too much anticholinesterase, and causes GI symptoms, severe weakness, vertigo and respiratory distress. Both can lead to respiratory failure." },
+   { id:"r5-tensilon", title:"Tensilon test", type:"mcq",
+     prompt:"A new patient is suspected of having myasthenia gravis. Which test should briefly improve muscle strength for about five minutes?",
+     options:["Nerve stimulation study","CT scan of the legs","Analysis of anti-acetylcholine receptor antibodies","Tensilon (edrophonium) test"], answer:3,
+     hint:"Which test involves injecting a drug?",
+     explain:"Injecting edrophonium (Tensilon) improves strength in MG for a few minutes. Single-fiber EMG and the serum acetylcholine receptor antibody assay also help with diagnosis, but neither gives a drug response." },
+   { id:"r5-msfatigue", title:"MS fatigue management", type:"multi",
+     prompt:"Khalid has MS and is exhausted by noon every day. Select ALL the appropriate fatigue strategies.",
+     options:["Plan important tasks for the morning","Take a hot bath to relax tight muscles","Build rest periods between activities","Avoid temperature extremes such as hot showers","Push through the fatigue to build stamina","Use assistive devices to save energy"], correct:[0,2,3,5],
+     hint:"Heat slows nerve conduction across demyelinated nerves.",
+     explain:"Energy reserves are highest in the morning, so plan tasks then. Build in rest periods and use assistive devices to save energy. Avoid heat and cold extremes, because heat delays impulse transmission across demyelinated nerves and makes fatigue worse." },
+   { id:"r5-msmed", title:"MS acute exacerbation medication", type:"mcq",
+     prompt:"Khalid is admitted with an acute MS exacerbation. Which medication do you expect to see ordered?",
+     options:["Meperidine (Demerol)","Dexamethasone (Decadron)","A monoamine oxidase (MAO) inhibitor","Rivastigmine (Exelon)"], answer:1,
+     hint:"MS is autoimmune and inflammatory.",
+     explain:"Glucocorticoids such as dexamethasone (often with ACTH) reduce inflammation and suppress the immune response during exacerbations. Meperidine is an opioid analgesic, MAO inhibitors treat depression, and rivastigmine treats Alzheimer disease." },
+   { id:"r5-exit", title:"MG airway clearance (q2h)", type:"code",
+     prompt:"FINAL DOOR. Layla needs help with airway clearance. Keypad: how often, in hours, should you assist her with turning, deep breathing and coughing?", answer:"2",
+     hint:"It's the same interval used for repositioning to prevent pressure injuries.",
+     explain:"Assist with turning, deep breathing and coughing every 2 hours, in semi-Fowler position. Keep her hydrated and monitor lung sounds, respiratory status and pulse oximetry." }
+ ]}
+];
+const PUZ = []; ROOMS.forEach((r,ri)=>r.puzzles.forEach(p=>{p.room=ri;PUZ.push(p);}));
+const SURVEY_GROUPS = [
+ {ar:"أ- الاستمتاع", en:"Enjoyment", items:["كانت اللعبة ممتعة بالنسبة لي.","أحببت لعب هذه اللعبة.","استمتعت كثيرًا بلعب هذه اللعبة.","كانت تجربتي مع اللعبة مليئة بالمتعة والسرور.","أعتقد أن لعب هذه اللعبة مسلٍ للغاية.","سأختار لعب هذه اللعبة لمجرد الاستمتاع، وليس فقط عندما يُطلب مني ذلك."]},
+ {ar:"ب- الاندماج", en:"Absorption", items:["أثناء لعب اللعبة، نسيت أين أنا.","نسيت ما يحيط بي أثناء اللعب.","بعد ما انتهيت من اللعبة، شعرت وكأنني عدت إلى \"العالم الحقيقي\" بعد رحلة.","شعرت أن اللعبة \"أبعدتني عن كل شيء.\"","بينما كنت ألعب اللعبة، كنت غافلاً تمامًا عن كل ما حولي.","لم أشعر بالوقت أثناء لعبي للعبة."]},
+ {ar:"ت- التفكير الإبداعي", en:"Creative thinking", items:["أثارت اللعبة خيالي.","أثناء اللعب، شعرت بأنني مبدع.","أثناء اللعب، شعرت أنني أستطيع استكشاف أشياء جديدة.","أثناء اللعب، شعرت بروح المغامرة."]},
+ {ar:"ث- التنشيط أو التحفيز", en:"Activation", items:["أثناء اللعب، شعرت بالنشاط والتحفيز.","شعرت بالتوتر والارتباك أثناء اللعب.","أثناء اللعب، شعرت بانفعال شديد وفقدان للسيطرة.","شعرت بالحماس أثناء اللعب."]},
+ {ar:"ج- غياب المشاعر السلبية", en:"Absence of negative affect", reverse:true, items:["شعرت بالضيق أثناء اللعب.","أثناء اللعب، شعرت بالعدوانية.","شعرت بالإحباط أثناء اللعب."]},
+ {ar:"ح- الإحساس بالسيطرة والثقة", en:"Dominance", items:["أثناء لعبي للعبة، شعرت بأنني المتحكم والمسيطر على مجريات الأمور.","أثناء لعبي للعبة، شعرت بأن لي تأثيرًا واضحًا على مجريات اللعبة.","أثناء لعبي للعبة، شعرت بأنني أتمتع بالاستقلالية في اتخاذ قراراتي.","أثناء لعبي للعبة، شعرت بالثقة في نفسي وقدراتي."]}
+];
+const SURVEY = []; SURVEY_GROUPS.forEach((g,gi)=>g.items.forEach(t=>SURVEY.push({t,g:gi})));
+const SCALE_AR = ["غير موافق بشدة","غير موافق","محايد","أوافق","أوافق بشدة"];
+const OPENQ = "ما الشيء الذي تعلّمته من هذه اللعبة، وما الذي يمكننا تحسينه؟";
+// subscale mean; "absence of negative affect" items are reverse-scored (6 − answer) as in the original GAMEX
+function subscale(q,gi){const g=SURVEY_GROUPS[gi];const v=SURVEY.map((x,i)=>x.g===gi?q[i]:0).filter(x=>x>0);if(!v.length)return 0;const m=v.reduce((a,b)=>a+b,0)/v.length;return g.reverse?6-m:m;}
+const MAX = PUZ.length*10, LIMIT = 20*60, SALT = "nurs314|neuro|ksu";
+const KEY = "n314-neuro-run";
+
+
+/* ---------------- ART (original inline SVG) ---------------- */
+const ROOMCOL = ["#62d3df","#f0b440","#ff8a7a","#b89cff","#5bd08f"];
+const ICONS = {
+ brain:'<path d="M24 9c-3-3-9-2-10 3-4 0-7 4-5 8-3 2-3 7 1 9-1 4 3 8 8 6 2 3 6 3 6 0M24 9c3-3 9-2 10 3 4 0 7 4 5 8 3 2 3 7-1 9 1 4-3 8-8 6-2 3-6 3-6 0M24 9v26M17 18c2 1 3 3 3 5M31 18c-2 1-3 3-3 5"/>',
+ r0:'<g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">BRAIN<circle cx="37" cy="37" r="8" fill="var(--panel)"/><path d="M37 41v-8M33.5 36.5 37 33l3.5 3.5"/></g>',
+ r1:'<g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">BRAIN<circle cx="37" cy="37" r="8" fill="var(--panel)"/><path d="M38.5 31.5 34.5 37.5h5l-4 6"/></g>',
+ r2:'<g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M24 5l15 5v11c0 10-6 17-15 22C15 38 9 31 9 21V10z"/><circle cx="24" cy="22" r="5.5"/><path d="M24 12.5v3M24 28.5v3M14.5 22h3M30.5 22h3M17.3 15.3l2.1 2.1M28.6 26.6l2.1 2.1M30.7 15.3l-2.1 2.1M19.4 26.6l-2.1 2.1"/></g>',
+ r3:'<g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M31 7c-9 0-15 6-15 14l-5 7 4 2v6c0 3 3 5 6 5h4v5"/><circle cx="29" cy="24" r="2" fill="currentColor"/><path d="M29 24 39 16M29 24h12M29 24l9 9"/><circle cx="40" cy="15" r="1.6" fill="currentColor"/><circle cx="42" cy="24" r="1.6" fill="currentColor"/><circle cx="39" cy="34" r="1.6" fill="currentColor"/></g>',
+ r4:'<g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 43h30M13 43V7h18v36"/><circle cx="26" cy="26" r="1.4" fill="currentColor"/><path d="M27 18h15M37 13l5 5-5 5"/></g>',
+ mcq:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="5" r="2.5"/><circle cx="5" cy="13" r="2.5" fill="currentColor"/><path d="M10 5h11M10 13h11"/></g>',
+ multi:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="6" height="6" rx="1"/><path d="M3.5 5 5 6.5 8.5 2.5"/><rect x="2" y="12" width="6" height="6" rx="1"/><path d="M12 5h9M12 15h9"/></g>',
+ match:'<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="4" cy="5" r="2"/><circle cx="4" cy="15" r="2"/><circle cx="20" cy="5" r="2"/><circle cx="20" cy="15" r="2"/><path d="M6 5 18 15M6 15 18 5"/></g>',
+ code:'<g fill="currentColor"><rect x="2" y="1" width="5" height="5" rx="1"/><rect x="9.5" y="1" width="5" height="5" rx="1"/><rect x="17" y="1" width="5" height="5" rx="1"/><rect x="2" y="8.5" width="5" height="5" rx="1"/><rect x="9.5" y="8.5" width="5" height="5" rx="1"/><rect x="17" y="8.5" width="5" height="5" rx="1"/><rect x="9.5" y="16" width="5" height="5" rx="1"/></g>',
+ detective:'<g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="9" cy="9" r="6"/><path d="m13.5 13.5 7 7"/></g>'
+};
+function roomIcon(i){return `<svg viewBox="0 0 48 48" aria-hidden="true">${ICONS["r"+i].replace("BRAIN",ICONS.brain)}</svg>`;}
+function typeIcon(t){return `<svg viewBox="0 0 24 22" aria-hidden="true">${ICONS[t]}</svg>`;}
+
+let avN=0;
+function avatar(c,alt){
+  const id="avc"+(++avN), sk=c.skin, line="rgba(40,22,12,.55)";
+  let s=`<svg class="av" viewBox="0 0 100 100" role="img" aria-label="${esc(alt)}"><defs><clipPath id="${id}"><circle cx="50" cy="50" r="50"/></clipPath><pattern id="${id}g" width="7" height="7" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.1" fill="#8fb4c2"/></pattern></defs><g clip-path="url(#${id})">`;
+  s+=`<rect width="100" height="100" fill="${c.bg}"/><circle cx="78" cy="22" r="26" fill="rgba(255,255,255,.06)"/>`;
+  s+=`<path d="M8 106C10 82 29 73 50 73s40 9 42 33Z" fill="#d6e8ee"/><path d="M8 106C10 82 29 73 50 73s40 9 42 33Z" fill="url(#${id}g)"/>`;
+  s+=`<path d="M41 64h18v12c-3 4-15 4-18 0Z" fill="${sk}"/>`;
+  if(c.hijab) s+=`<path d="M24 46C24 15 76 15 76 46L81 82C68 93 32 93 19 82Z" fill="${c.hijab}"/><path d="M30 72c8 6 32 6 40 0" stroke="rgba(0,0,0,.18)" stroke-width="2" fill="none"/>`;
+  else s+=`<ellipse cx="33.5" cy="47" rx="3.2" ry="5" fill="${sk}"/><ellipse cx="66.5" cy="47" rx="3.2" ry="5" fill="${sk}"/>`;
+  s+=`<ellipse cx="50" cy="46" rx="${c.hijab?15.5:16.5}" ry="19.5" fill="${sk}"/>`;
+  if(c.hijab) s+=`<path d="M33 40C33 24 67 24 67 40C62 31 38 31 33 40Z" fill="${c.hijab}"/>`;
+  if(c.hair) s+=`<path d="M33 42C31 24 41 19 50 19S69 24 67 42C65 33 59 29 50 29S35 33 33 42Z" fill="${c.hair}"/>`;
+  if(c.beard) s+=`<path d="M34 47C34 62 42 67 50 67S66 62 66 47C64 56 59 59 50 59S36 56 34 47Z" fill="${c.beard}"/>`;
+  if(c.fever) s+=`<ellipse cx="40" cy="51" rx="4" ry="2.6" fill="rgba(230,70,60,.45)"/><ellipse cx="60" cy="51" rx="4" ry="2.6" fill="rgba(230,70,60,.45)"/>`;
+  // brows
+  const B={flat:["M39.5 39.5h7","M53.5 39.5h7"],worried:["M39.5 40.5 46.5 38.5","M53.5 38.5 60.5 40.5"],droop:["M39.5 39.5h7","M53.5 40.5 60.5 42.5"]}[c.brows||"flat"];
+  s+=`<path d="${B[0]}M${B[1].slice(1)}" stroke="${c.beard||c.hair||"#2a1d16"}" stroke-width="2" stroke-linecap="round" fill="none"/>`;
+  // eyes
+  const E=c.eyes, dk="#1c1612";
+  if(E==="closed") s+=`<path d="M40 46q3 2 6 0M54 46q3 2 6 0" stroke="${dk}" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+  else if(E==="squint") s+=`<path d="M40 45.5q3 1.6 6 0M54 45.5q3 1.6 6 0M39 43.5l-1.5-1M61 43.5l1.5-1" stroke="${dk}" stroke-width="1.7" fill="none" stroke-linecap="round"/>`;
+  else if(E==="up") s+=`<ellipse cx="43" cy="45.5" rx="3" ry="2.4" fill="#fff"/><ellipse cx="57" cy="45.5" rx="3" ry="2.4" fill="#fff"/><circle cx="43" cy="44" r="1.4" fill="${dk}"/><circle cx="57" cy="44" r="1.4" fill="${dk}"/>`;
+  else if(E==="ptosis"||E==="tired") s+=`<ellipse cx="43" cy="46" rx="2.4" ry="2.6" fill="${dk}"/><ellipse cx="57" cy="46" rx="2.4" ry="2.6" fill="${dk}"/><path d="M40 46.3Q43 ${E==="ptosis"?42:43} 46 46.3ZM54 46.3Q57 ${E==="ptosis"?42:43} 60 46.3Z" fill="${sk}"/><path d="M40 46.3h6M54 46.3h6" stroke="${line}" stroke-width="1.3"/>${E==="tired"?`<path d="M40.5 49.5q2.5 1.5 5 0M54.5 49.5q2.5 1.5 5 0" stroke="${line}" stroke-width="1" fill="none"/>`:""}`;
+  else if(E==="droop") s+=`<ellipse cx="43" cy="46" rx="2.2" ry="2.6" fill="${dk}"/><ellipse cx="57" cy="47" rx="3.2" ry="3.2" fill="#fff"/><circle cx="57" cy="47.4" r="1.7" fill="${dk}"/><path d="M53.8 48.8q3.2 2.4 6.4 0" stroke="${line}" stroke-width="1.2" fill="none"/>`;
+  else s+=`<ellipse cx="43" cy="46" rx="2.2" ry="2.6" fill="${dk}"/><ellipse cx="57" cy="46" rx="2.2" ry="2.6" fill="${dk}"/>`;
+  s+=`<path d="M50 47q-2 5 .8 5.6" stroke="${line}" stroke-width="1.3" fill="none" stroke-linecap="round"/>`;
+  const M={flat:"M45 57q5 1.2 10 0",frown:"M45 58.5q5-3 10 0",open:"M45.5 56.5q4.5-2 9 0q-4.5 4.5-9 0Z",droop:"M44.5 56q4.5 1 7 1.5q2.5.8 4 3"}[c.mouth||"flat"];
+  s+=`<path d="${M}" stroke="#6b2c22" stroke-width="1.8" fill="${c.mouth==="open"?"#5a231b":"none"}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if(c.bandage) s+=`<path d="M32.5 33C40 27 60 27 67.5 33V40C60 35 40 35 32.5 40Z" fill="#f6f5f0"/><path d="M36 31.5v6M42 30v6M48 29.5v6M54 29.5v6M60 30v6M65 31.5v6" stroke="#dcd8cc" stroke-width=".8"/><ellipse cx="60" cy="34" rx="3" ry="1.8" fill="#d9574a" opacity=".8"/>`;
+  if(c.mask) s+=`<path d="M34 46l3 4M66 46l-3 4" stroke="#fff" stroke-width="1"/><path d="M37 50Q50 47 63 50L61.5 61Q50 66.5 38.5 61Z" fill="#a9dbe8"/><path d="M39 54h22M39.5 57.5h21" stroke="#7fbccc" stroke-width="1"/>`;
+  if(c.fever) s+=`<path d="M70 30c0 0 4 5 4 7.5a4 4 0 0 1-8 0C66 35 70 30 70 30Z" fill="#9fdcff"/>`;
+  if(c.hand) s+=`<path d="M18 92C21 74 26 62 31 54C33 50 37 49 38 52L36 60C35 63 34 70 34 74L30 95Z" fill="${sk}"/><path d="M33 53l3 1M33.5 57l3 1" stroke="${line}" stroke-width="1"/><path d="M22 33l6 4-3 1 6 5" stroke="#f0b440" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if(c.zaps) s+=`<path d="M18 30l5 3-3 1 5 4M82 30l-5 3 3 1-5 4" stroke="#f0b440" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if(c.zz) s+=`<text x="70" y="28" font-family="Chakra Petch,sans-serif" font-weight="700" font-size="11" fill="#cfe3ea">z</text><text x="77" y="20" font-family="Chakra Petch,sans-serif" font-weight="700" font-size="8" fill="#cfe3ea" opacity=".7">z</text>`;
+  return s+`</g></svg>`;
+}
+function ecg(){
+  let d="M0 24"; for(let k=0;k<3;k++){const o=k*100; d+=`L${o+18} 24L${o+23} 19L${o+28} 24L${o+35} 24L${o+38} 28L${o+42} 4L${o+46} 36L${o+50} 24L${o+60} 24L${o+66} 17L${o+74} 24L${o+100} 24`;}
+  return `<svg class="ecg" viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true"><path class="trace" d="${d}"/><path class="dot" d="${d}"/></svg>`;
+}
+const RM = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const FIG = {
+ iv:'<line x1="22" y1="-106" x2="22" y2="0" stroke="#8ea7b5" stroke-width="2.5"/><rect x="16.5" y="-114" width="11" height="14" rx="2" fill="#bfe6f0"/><path d="M13 1h18" stroke="#8ea7b5" stroke-width="3"/><path d="M22 -100 Q14 -80 12 -70" stroke="#bfe6f0" stroke-width="1.2" fill="none"/><path d="M-12 -78Q0 -83 12 -78L16 -28H-16Z" fill="#cfe3ea"/><path d="M12 -74L20 -54" stroke="#cfe3ea" stroke-width="6" stroke-linecap="round"/><path d="M-12 -74L-17 -48" stroke="#cfe3ea" stroke-width="6" stroke-linecap="round"/><rect x="-10" y="-30" width="7" height="30" rx="3" fill="#a8714b"/><rect x="3" y="-30" width="7" height="30" rx="3" fill="#a8714b"/><circle cx="0" cy="-90" r="9.5" fill="#a8714b"/><path d="M-9.5 -92a9.5 9.5 0 0 1 19 0q-9.5-6-19 0Z" fill="#1d1612"/>',
+ hijab:'<path d="M-13 -78Q0 -83 13 -78L17 -26H-17Z" fill="#d6e8ee"/><path d="M13 -74L18 -48M-13 -74L-18 -48" stroke="#d6e8ee" stroke-width="6" stroke-linecap="round"/><rect x="-10" y="-28" width="7" height="28" rx="3" fill="#c48b62"/><rect x="3" y="-28" width="7" height="28" rx="3" fill="#c48b62"/><path d="M-13 -88a13 13 0 0 1 26 0L15 -72Q0 -66 -15 -72Z" fill="#3d6b78"/><ellipse cx="0" cy="-88" rx="7" ry="8.5" fill="#c48b62"/>',
+ cane:'<path d="M-12 -78Q0 -83 12 -78L15 -28H-15Z" fill="#cfe3ea"/><path d="M12 -74L22 -50" stroke="#cfe3ea" stroke-width="6" stroke-linecap="round"/><path d="M-12 -74L-16 -48" stroke="#cfe3ea" stroke-width="6" stroke-linecap="round"/><path d="M22 -50V0M22 -50q0-6 6-6" stroke="#f0b440" stroke-width="3" fill="none" stroke-linecap="round"/><rect x="-10" y="-30" width="7" height="30" rx="3" fill="#9c6a46"/><rect x="3" y="-30" width="7" height="30" rx="3" fill="#9c6a46"/><circle cx="0" cy="-90" r="9.5" fill="#9c6a46"/><path d="M-9.5 -88q9.5 14 19 0v6q-9.5 10-19 0Z" fill="#1d1612"/><path d="M-9.5 -92a9.5 9.5 0 0 1 19 0q-9.5-6-19 0Z" fill="#1d1612"/>',
+ nurse:'<path d="M-13 -78Q0 -83 13 -78L15 -32H-15Z" fill="#3fb6c4"/><path d="M13 -74L17 -50M-13 -74L-17 -50" stroke="#3fb6c4" stroke-width="6" stroke-linecap="round"/><rect x="-11" y="-34" width="9" height="34" rx="3" fill="#2f97a4"/><rect x="2" y="-34" width="9" height="34" rx="3" fill="#2f97a4"/><rect x="-17" y="-64" width="12" height="16" rx="1.5" fill="#f2efe6"/><path d="M-13 -88a13 13 0 0 1 26 0L15 -72Q0 -66 -15 -72Z" fill="#1e2a33"/><ellipse cx="0" cy="-88" rx="7" ry="8.5" fill="#c99069"/>',
+ back:'<path d="M-13 -78Q0 -83 13 -78L15 -32H-15Z" fill="#3fb6c4"/><path d="M13 -74L16 -48M-13 -74L-16 -48" stroke="#3fb6c4" stroke-width="6" stroke-linecap="round"/><rect x="-11" y="-34" width="9" height="34" rx="3" fill="#2f97a4"><animate attributeName="height" values="34;30;34" dur=".7s" repeatCount="indefinite"/></rect><rect x="2" y="-34" width="9" height="34" rx="3" fill="#2f97a4"><animate attributeName="height" values="30;34;30" dur=".7s" repeatCount="indefinite"/></rect><path d="M-13 -86a13 13 0 0 1 26 0L15 -70Q0 -64 -15 -70Z" fill="#1e2a33"/>'
+};
+function corridor(mode,openN){
+  mode=mode||"loop"; const u="c"+(++avN);
+  const L=(a,b,t)=>a+(b-a)*t, W=600, f=v=>Math.round(v*10)/10;
+  const wallPt=(x,side)=>{const t=(side==="l"?x:W-x)/250;return {top:L(0,70,t),bot:L(220,140,t)};};
+  const anim = !RM;
+  const door=(x1,x2,side,n,fig,delay)=>{
+    const a=wallPt(x1,side),b=wallPt(x2,side);
+    const ta=L(a.top,a.bot,.3),tb=L(b.top,b.bot,.3),ab=a.bot,bb=b.bot;
+    // hinge = edge nearest the viewer
+    const H = side==="l"?{x:x1,t:ta,b:ab}:{x:x2,t:tb,b:bb}, F = side==="l"?{x:x2,t:tb,b:bb}:{x:x1,t:ta,b:ab};
+    const k=.2, Ox=H.x+(F.x-H.x)*k, Ot=H.t+(F.t-H.t)*k-3, Ob=H.b+(F.b-H.b)*k+3;
+    const closed=`M${f(H.x)} ${f(H.t)}L${f(F.x)} ${f(F.t)}L${f(F.x)} ${f(F.b)}L${f(H.x)} ${f(H.b)}Z`;
+    const open=`M${f(H.x)} ${f(H.t)}L${f(Ox)} ${f(Ot)}L${f(Ox)} ${f(Ob)}L${f(H.x)} ${f(H.b)}Z`;
+    const toC = x=>x+(300-x)*.4;
+    const spill=`M${f(x1)} ${f(ab)}L${f(x2)} ${f(bb)}L${f(toC(x2))} ${f(bb+16)}L${f(toC(x1))} ${f(ab+16)}Z`;
+    const cx=(x1+x2)/2, by=(ab+bb)/2, sc=((ab-ta)+(bb-tb))/2*.8/100, dx=side==="l"?28:-28;
+    const isOpen = mode==="open" && openN===n;
+    const lit = isOpen || (mode==="loop");
+    // loop timing: closed → open → hold → close
+    const D="10s", KT="0;.12;.22;.62;.72;1", B=`${delay}s`;
+    let out = `<path d="${closed}" fill="url(#${u}roomlit)" opacity="${mode==="loop"||isOpen?1:.35}"/>`;
+    out += `<path d="${spill}" fill="#f0b440" opacity="${isOpen&&!anim?.22:0}">${anim&&mode==="loop"?`<animate attributeName="opacity" values="0;0;.22;.22;0;0" keyTimes="${KT}" dur="${D}" begin="${B}" repeatCount="indefinite"/>`:""}${anim&&isOpen?`<animate attributeName="opacity" from="0" to=".25" begin=".5s" dur="1.2s" fill="freeze"/>`:""}</path>`;
+    if(fig && mode==="loop") out += `<g transform="translate(${f(cx)} ${f(by)}) scale(${sc.toFixed(3)})" opacity="${anim?0:0}"><g>${FIG[fig]}${anim?`<animateTransform attributeName="transform" type="translate" values="0 0;0 0;0 0;${dx} 4;${dx} 4;0 0;0 0" keyTimes="0;.12;.24;.36;.54;.64;1" dur="${D}" begin="${B}" repeatCount="indefinite"/>`:""}</g>${anim?`<animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;.2;.26;.56;.62;1" dur="${D}" begin="${B}" repeatCount="indefinite"/>`:""}</g>`;
+    out += `<path d="${isOpen&&!anim?open:closed}" fill="#1d3443" stroke="${isOpen?"#f0b440":"#3a5a6e"}" stroke-width="1.5">${anim&&mode==="loop"?`<animate attributeName="d" values="${closed};${closed};${open};${open};${closed};${closed}" keyTimes="${KT}" dur="${D}" begin="${B}" repeatCount="indefinite" calcMode="spline" keySplines=".4 0 .2 1;.4 0 .2 1;0 0 1 1;.4 0 .2 1;0 0 1 1"/>`:""}${anim&&isOpen?`<animate attributeName="d" from="${closed}" to="${open}" begin=".5s" dur="1.2s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".4 0 .2 1"/>`:""}</path>`;
+    const done = mode==="open" && n<openN;
+    out += `<text x="${f(cx)}" y="${f(Math.min(ta,tb)-5)}" text-anchor="middle" font-family="Chakra Petch,sans-serif" font-weight="700" font-size="${f((x2-x1)*.24)}" fill="${isOpen?"#f0b440":done?"#5bd08f":"#8ea7b5"}">${done?"✓":n}</text>`;
+    return out;
+  };
+  const exitOpen = mode==="open"&&openN===5;
+  const ec="M286 100L314 100L314 140L286 140Z", eo="M286 100L291 101.5L291 138.5L286 140Z";
+  const nurse = mode==="loop" && anim ? `<g opacity="0"><animateTransform attributeName="transform" type="translate" values="330 232;304 141" dur="14s" begin="1s" repeatCount="indefinite"/><g><animateTransform attributeName="transform" type="scale" values=".95;.2" dur="14s" begin="1s" repeatCount="indefinite"/>${FIG.back}</g><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.06;.85;1" dur="14s" begin="1s" repeatCount="indefinite"/></g>` : "";
+  return `<svg class="corr" viewBox="0 0 600 220" role="img" aria-label="${mode==="open"?(openN===5?"The exit door at the end of the corridor swings open":"Door "+openN+" swings open in the corridor"):"A dim hospital corridor where doors open, patients step out, and a nurse walks toward the glowing exit sign"}">
+  <defs><linearGradient id="${u}fl" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#1a2c38"/><stop offset="1" stop-color="#0d1822"/></linearGradient>
+  <linearGradient id="${u}roomlit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6d58c"/><stop offset="1" stop-color="#b9862f"/></linearGradient>
+  <radialGradient id="${u}glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#5bd08f" stop-opacity=".55"/><stop offset="1" stop-color="#5bd08f" stop-opacity="0"/></radialGradient>
+  <radialGradient id="${u}red" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff7a70" stop-opacity=".5"/><stop offset="1" stop-color="#ff7a70" stop-opacity="0"/></radialGradient></defs>
+  <rect width="600" height="220" fill="#0b141c"/>
+  <path d="M0 0L250 70L350 70L600 0Z" fill="#0f1d27"/><path d="M0 0L250 70L250 140L0 220Z" fill="#132430"/><path d="M600 0L350 70L350 140L600 220Z" fill="#132430"/>
+  <path d="M0 220L250 140L350 140L600 220Z" fill="url(#${u}fl)"/><path d="M300 140L300 220" stroke="#2a4558" stroke-width="2" stroke-dasharray="10 12"/>
+  <path d="M0 150L250 118M600 150L350 118" stroke="#294456" stroke-width="2"/>
+  <rect x="250" y="70" width="100" height="70" fill="#0f1c25"/>
+  <ellipse cx="300" cy="10" rx="70" ry="6" fill="#62d3df" opacity=".18"/>
+  <ellipse cx="300" cy="38" rx="42" ry="4" fill="#62d3df" opacity=".14">${anim&&mode==="loop"?`<animate attributeName="opacity" values=".14;.14;.02;.14;.04;.14;.14" keyTimes="0;.6;.62;.64;.67;.7;1" dur="5s" repeatCount="indefinite"/>`:""}</ellipse>
+  <ellipse cx="300" cy="57" rx="22" ry="2.5" fill="#62d3df" opacity=".12"/>
+  ${door(408,450,"r",4,"cane",6.5)}${door(150,192,"l",3,"hijab",4)}
+  <path d="${ec}" fill="${exitOpen?"#bdf5d3":"#163626"}"/>
+  ${exitOpen?`<path d="M286 140L314 140L340 170L260 170Z" fill="#5bd08f" opacity="0">${anim?`<animate attributeName="opacity" from="0" to=".3" begin=".5s" dur="1.2s" fill="freeze"/>`:""}</path>`:""}
+  <path d="${exitOpen&&!anim?eo:ec}" fill="#163626" stroke="#5bd08f" stroke-width="1.2">${exitOpen&&anim?`<animate attributeName="d" from="${ec}" to="${eo}" begin=".5s" dur="1.2s" fill="freeze"/>`:""}</path>
+  <text x="300" y="124" text-anchor="middle" font-family="Chakra Petch,sans-serif" font-weight="700" font-size="9" fill="#5bd08f" opacity="${exitOpen?0:1}">5</text>
+  <ellipse cx="300" cy="88" rx="40" ry="16" fill="url(#${u}glow)">${anim?`<animate attributeName="opacity" values="1;.55;1" dur="2.4s" repeatCount="indefinite"/>`:""}</ellipse><rect x="284" y="82" width="32" height="11" rx="1.5" fill="#1f7a4a"/><text x="300" y="90.5" text-anchor="middle" font-family="Chakra Petch,sans-serif" font-weight="700" font-size="8" fill="#eafff2" letter-spacing="1">EXIT</text>
+  ${mode==="loop"?`<circle cx="300" cy="74" r="22" fill="url(#${u}red)">${anim?`<animate attributeName="opacity" values="1;.2;1" dur="1.6s" repeatCount="indefinite"/>`:""}</circle><circle cx="300" cy="74" r="2.5" fill="#ff7a70"/>`:""}
+  ${nurse}
+  ${door(502,572,"r",2,"nurse",1.5)}${door(28,98,"l",1,"iv",0)}
+  </svg>`;
+}
+function openDoorArt(){return `<svg class="ill" viewBox="0 0 150 120" aria-hidden="true"><path d="M30 112h90" stroke="#294456" stroke-width="3" stroke-linecap="round"/><path d="M48 112l-24 6h102l-24-6Z" fill="#5bd08f" opacity=".18"/><rect x="48" y="12" width="54" height="100" fill="#0b2a1c" stroke="#5bd08f" stroke-width="3"/><rect x="52" y="16" width="46" height="96" fill="#5bd08f" opacity=".22"/><path d="M48 12 22 22v92l26-2Z" fill="#1d3443" stroke="#62d3df" stroke-width="2.5" stroke-linejoin="round"/><circle cx="29" cy="68" r="2.6" fill="#f0b440"/><path d="M68 62l8 8 14-16" stroke="#5bd08f" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;}
+function lockArt(){return `<svg class="ill" viewBox="0 0 150 120" aria-hidden="true"><path d="M52 52V38a23 23 0 0 1 46 0v14" stroke="#8ea7b5" stroke-width="8" fill="none" stroke-linecap="round"/><rect x="38" y="50" width="74" height="58" rx="10" fill="#1d3443" stroke="#ff7a70" stroke-width="3"/><circle cx="75" cy="74" r="7" fill="#ff7a70"/><path d="M75 78v14" stroke="#ff7a70" stroke-width="5" stroke-linecap="round"/></svg>`;}
+function exitArt(){return `<svg class="ill" viewBox="0 0 150 120" aria-hidden="true"><ellipse cx="75" cy="42" rx="70" ry="34" fill="#5bd08f" opacity=".14"/><rect x="25" y="20" width="100" height="42" rx="5" fill="#1f7a4a" stroke="#5bd08f" stroke-width="2"/><text x="75" y="50" text-anchor="middle" font-family="Chakra Petch,sans-serif" font-weight="700" font-size="24" fill="#eafff2" letter-spacing="3">EXIT</text><path d="M48 104h54M75 66v38" stroke="#294456" stroke-width="3" stroke-linecap="round"/><path d="M60 84h30M82 76l8 8-8 8" stroke="#5bd08f" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;}
+
+
+/* ---------------- SOUND (synthesized with Web Audio, no files) ---------------- */
+const SND = (function(){
+  let AC=null, master=null, sfx=null, mus=null, rev=null, noiseBuf=null, muted=false, musicOn=true, musTimer=null, nextChord=0, chordIx=0;
+  try{ muted = localStorage.getItem("n314-sound")==="off"; musicOn = localStorage.getItem("n314-music")!=="off"; }catch(e){}
+  const ok=()=>AC&&!muted&&AC.state==="running";
+  function init(){
+    if(AC){ if(AC.state==="suspended") AC.resume().catch(()=>{}); return; }
+    const C=window.AudioContext||window.webkitAudioContext; if(!C) return;
+    try{ AC=new C(); }catch(e){ return; }
+    master=AC.createGain(); master.gain.value=.8;
+    const comp=AC.createDynamicsCompressor(); master.connect(comp); comp.connect(AC.destination);
+    sfx=AC.createGain(); sfx.gain.value=muted?0:1; sfx.connect(master);
+    noiseBuf=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate); const d=noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    // music bus with a soft hall reverb
+    mus=AC.createGain(); mus.gain.value=0; mus.connect(master);
+    rev=AC.createConvolver(); const len=AC.sampleRate*3.2, ir=AC.createBuffer(2,len,AC.sampleRate);
+    for(let c=0;c<2;c++){const ch=ir.getChannelData(c); for(let i=0;i<len;i++) ch[i]=(Math.random()*2-1)*Math.pow(1-i/len,3);}
+    rev.buffer=ir; const rg=AC.createGain(); rg.gain.value=.55; rev.connect(rg); rg.connect(mus);
+    if(musicOn) startMusic();
+  }
+  ["pointerdown","keydown","touchstart"].forEach(ev=>document.addEventListener(ev,init,{passive:true}));
+  const T=(at)=>AC.currentTime+(at||0);
+  function env(g,t,a,peak,hold,rel){ g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+a); g.gain.setValueAtTime(peak,t+a+hold); g.gain.exponentialRampToValueAtTime(0.0001,t+a+hold+rel); }
+  function tone(f,dur,o={}){ if(!ok())return; const t=T(o.at), osc=AC.createOscillator(), g=AC.createGain(); osc.type=o.type||"sine"; osc.frequency.setValueAtTime(f,t); if(o.to) osc.frequency.exponentialRampToValueAtTime(o.to,t+dur); env(g,t,o.a||.005,o.vol||.2,Math.max(0,dur-(o.a||.005)-(o.r||.08)),o.r||.08); let node=osc; if(o.lp){const f2=AC.createBiquadFilter(); f2.type="lowpass"; f2.frequency.value=o.lp; osc.connect(f2); node=f2;} node.connect(g); g.connect(sfx); osc.start(t); osc.stop(t+dur+.05); }
+  function noise(dur,o={}){ if(!ok())return; const t=T(o.at), src=AC.createBufferSource(), f=AC.createBiquadFilter(), g=AC.createGain(); src.buffer=noiseBuf; f.type=o.ft||"bandpass"; f.frequency.setValueAtTime(o.f||1000,t); if(o.fto) f.frequency.exponentialRampToValueAtTime(o.fto,t+dur); f.Q.value=o.q||1; env(g,t,o.a||.003,o.vol||.2,Math.max(0,dur-(o.a||.003)-(o.r||.05)),o.r||.05); src.connect(f); f.connect(g); g.connect(sfx); src.start(t,Math.random()); src.stop(t+dur+.05); }
+  // a creaking hinge: a stick-slip buzz through a resonant filter
+  function creak(at=0,len=.9,vol=.09,pitch=1){ if(!ok())return; const t=T(at), osc=AC.createOscillator(), bp=AC.createBiquadFilter(), bp2=AC.createBiquadFilter(), g=AC.createGain();
+    osc.type="sawtooth"; const n=24, curve=new Float32Array(n); let v=55*pitch; for(let i=0;i<n;i++){ v=Math.max(28*pitch,Math.min(110*pitch,v+(Math.random()-.45)*30*pitch)); curve[i]=v; } osc.frequency.setValueCurveAtTime(curve,t,len);
+    bp.type="bandpass"; bp.frequency.value=900*pitch; bp.Q.value=6; bp2.type="bandpass"; bp2.frequency.value=2300*pitch; bp2.Q.value=8;
+    const g2=AC.createGain(); g2.gain.value=.5; env(g,t,.06,vol,len-.25,.19); osc.connect(bp); osc.connect(bp2); bp2.connect(g2); bp.connect(g); g2.connect(g); g.connect(sfx); osc.start(t); osc.stop(t+len+.1); }
+  function thud(at=0,vol=.35){ tone(95,.22,{at,to:42,vol,a:.004,r:.18}); noise(.12,{at,ft:"lowpass",f:380,vol:vol*.6,r:.1}); }
+  // hospital door: a soft air whoosh, a light latch, a padded close
+  function whoosh(at=0,dur=.8,vol=.06,down){ noise(dur,{at,f:down?1300:380,fto:down?420:1300,q:.7,vol,a:dur*.45,r:dur*.45}); }
+  function softClose(at=0){ tone(190,.09,{at,to:120,vol:.09,a:.003,r:.07}); noise(.035,{at:at+.01,ft:"highpass",f:1800,vol:.07}); }
+  function latch(at=0){ noise(.025,{at,ft:"highpass",f:3000,vol:.1}); noise(.025,{at:at+.06,ft:"highpass",f:2400,vol:.08}); }
+  // vowel-shaped synthetic voice for moans and groans
+  const VOW={oh:[[450,1],[800,.45],[2830,.12]],ah:[[730,1],[1090,.5],[2440,.15]],uh:[[520,1],[1190,.4],[2390,.12]]};
+  function voice(o){ if(!ok())return; const t=T(o.at), dur=o.dur, osc=AC.createOscillator(), lfo=AC.createOscillator(), lg=AC.createGain(), out=AC.createGain();
+    osc.type="sawtooth"; osc.frequency.setValueAtTime(o.f0,t); osc.frequency.linearRampToValueAtTime(o.f0*(o.peak||1.08),t+dur*.3); osc.frequency.linearRampToValueAtTime(o.f0*(o.glide||.75),t+dur);
+    lfo.frequency.value=o.vib||5.5; lg.gain.value=o.f0*(o.shake||.025); lfo.connect(lg); lg.connect(osc.frequency);
+    VOW[o.v||"oh"].forEach(([fr,w])=>{const bp=AC.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=fr*(o.fs||1); bp.Q.value=7; const gw=AC.createGain(); gw.gain.value=w; osc.connect(bp); bp.connect(gw); gw.connect(out);});
+    const vol=o.vol||.5; out.gain.setValueAtTime(.0001,t); out.gain.exponentialRampToValueAtTime(vol,t+dur*(o.att||.25)); out.gain.setValueAtTime(vol*.85,t+dur*.65); out.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    out.connect(sfx); osc.start(t); lfo.start(t); osc.stop(t+dur+.05); lfo.stop(t+dur+.05);
+    noise(dur*.9,{at:o.at,f:1600*(o.fs||1),q:.8,vol:vol*(o.breath||.06),a:dur*.3,r:dur*.4}); }
+  const VOICES={
+    male:  (at=0)=>voice({at,f0:112,dur:1.5,v:"oh",glide:.72,vol:.55}),
+    maleSharp:(at=0)=>voice({at,f0:165,dur:.75,v:"ah",glide:.7,vol:.55,att:.08,shake:.05,vib:9}),
+    female:(at=0)=>{voice({at,f0:250,dur:.45,v:"ah",glide:.8,vol:.4,att:.1,fs:1.15,shake:.05,vib:8}); voice({at:at+.55,f0:235,dur:.6,v:"ah",glide:.7,vol:.35,att:.12,fs:1.15,shake:.05,vib:8});},
+    sigh:  (at=0)=>voice({at,f0:200,dur:1.1,v:"ah",glide:.7,vol:.18,fs:1.15,breath:.9,att:.35}),
+    groanM:(at=0)=>voice({at,f0:120,dur:.7,v:"uh",glide:.75,vol:.45,att:.12}),
+    groanF:(at=0)=>voice({at,f0:225,dur:.6,v:"uh",glide:.75,vol:.35,att:.12,fs:1.15})
+  };
+  // calm generative music: slow pad chords + sparse bell-like notes (A minor, ~56 bpm feel)
+  const CH=[[87.31,130.81,164.81,220],[82.41,196,246.94,261.63],[110,164.81,196,261.63],[146.83,196,220,293.66]];
+  const MEL=[523.25,587.33,659.25,783.99,880];
+  const LEN=12;
+  function pad(f,t,len){ [-4,4].forEach(cents=>{ const o=AC.createOscillator(), lp=AC.createBiquadFilter(), g=AC.createGain(); o.type="sine"; o.frequency.value=f; o.detune.value=cents; lp.type="lowpass"; lp.frequency.value=650; g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.026,t+4); g.gain.setValueAtTime(.026,t+len-1.5); g.gain.exponentialRampToValueAtTime(.0001,t+len+3.5); o.connect(lp); lp.connect(g); g.connect(mus); g.connect(rev); o.start(t); o.stop(t+len+3.6); }); }
+  function bell(f,t){ const o=AC.createOscillator(), o2=AC.createOscillator(), g=AC.createGain(), g2=AC.createGain(); o.type="sine"; o.frequency.value=f; o2.type="sine"; o2.frequency.value=f*2.01; g2.gain.value=.25; g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.026,t+.04); g.gain.exponentialRampToValueAtTime(.0001,t+3.5); o.connect(g); o2.connect(g2); g2.connect(g); g.connect(mus); g.connect(rev); o.start(t); o2.start(t); o.stop(t+3.6); o2.stop(t+3.6); }
+  function schedule(){ if(!AC||!musicOn) return; while(nextChord < AC.currentTime+3){ const t=Math.max(nextChord,AC.currentTime+.05), ch=CH[chordIx%CH.length]; ch.forEach(f=>pad(f,t,LEN)); const n=1+Math.floor(Math.random()*2); for(let i=0;i<n;i++){ const f=MEL[Math.floor(Math.random()*MEL.length)]; bell(f, t+2+Math.random()*8); }
+      // distant ward monitor, very quiet
+      for(let k=0;k<LEN;k+=4){ const bt=t+k+1.3; const o=AC.createOscillator(), g=AC.createGain(); o.frequency.value=1046.5; g.gain.setValueAtTime(.0001,bt); g.gain.exponentialRampToValueAtTime(.006,bt+.01); g.gain.exponentialRampToValueAtTime(.0001,bt+.14); o.connect(g); g.connect(rev); o.start(bt); o.stop(bt+.2); }
+      chordIx++; nextChord=t+LEN; } }
+  let tone0=null;
+  function roomTone(on){ if(on&&!tone0){ const src=AC.createBufferSource(), lp=AC.createBiquadFilter(), g=AC.createGain(); src.buffer=noiseBuf; src.loop=true; lp.type="lowpass"; lp.frequency.value=220; g.gain.value=.018; src.connect(lp); lp.connect(g); g.connect(mus); src.start(); tone0=src; } if(!on&&tone0){ try{tone0.stop();}catch(e){} tone0=null; } }
+  function startMusic(){ if(!AC) return; mus.gain.cancelScheduledValues(AC.currentTime); mus.gain.setValueAtTime(mus.gain.value,AC.currentTime); mus.gain.linearRampToValueAtTime(.75,AC.currentTime+3); roomTone(true); if(!musTimer){ nextChord=AC.currentTime+.1; schedule(); musTimer=setInterval(schedule,700); } }
+  function stopMusic(){ if(!AC) return; mus.gain.cancelScheduledValues(AC.currentTime); mus.gain.setValueAtTime(mus.gain.value,AC.currentTime); mus.gain.linearRampToValueAtTime(0,AC.currentTime+.8); clearInterval(musTimer); musTimer=null; setTimeout(()=>{ if(!musicOn) roomTone(false); },900); }
+  return {
+    get musicOn(){return musicOn},
+    setMusic(on){ musicOn=on; try{localStorage.setItem("n314-music",on?"on":"off");}catch(e){} if(on){ init(); startMusic(); } else stopMusic(); },
+    init, ok, get muted(){return muted},
+    setMuted(m){ muted=m; try{localStorage.setItem("n314-sound",m?"off":"on");}catch(e){} if(sfx) sfx.gain.value=m?0:1; if(!m){ init(); setTimeout(()=>tone(880,.08,{vol:.12}),60);} },
+    beep(){ tone(965,.11,{vol:.13,r:.06}); },
+    click(){ noise(.02,{ft:"highpass",f:3000,vol:.08}); },
+    key(k){ const f={0:941,1:697,2:697,3:697,4:770,5:770,6:770,7:852,8:852,9:852}[k]||800, h={0:1336,1:1209,2:1336,3:1477,4:1209,5:1336,6:1477,7:1209,8:1336,9:1477}[k]||1200; tone(f,.12,{vol:.07}); tone(h,.12,{vol:.07}); },
+    correct(){ tone(660,.14,{vol:.16}); tone(990,.28,{at:.12,vol:.16}); },
+    wrong(){ tone(150,.28,{type:"square",vol:.1,lp:900}); tone(110,.3,{at:.05,type:"square",vol:.08,lp:700}); },
+    hint(){ tone(1200,.08,{vol:.1}); tone(1600,.1,{at:.08,vol:.08}); },
+    tick(){ noise(.025,{ft:"highpass",f:4000,vol:.12}); },
+    alarm(){ for(let i=0;i<4;i++){ tone(880,.22,{at:i*.5,type:"square",vol:.07,lp:2500}); tone(660,.22,{at:i*.5+.25,type:"square",vol:.07,lp:2500}); } },
+    success(){ [523,659,784,1047].forEach((f,i)=>tone(f,.35,{at:i*.13,vol:.13,type:"triangle"})); },
+    doorOpen(at=0){ latch(at); whoosh(at+.12,.9,.06); },
+    doorClose(at=0){ whoosh(at,.6,.04,true); softClose(at+.5); },
+    voice(name,at){ VOICES[name]&&VOICES[name](at||0); }
+  };
+})();
+const ROOMVOICE=[null,"female","male","maleSharp","sigh"];
+const WRONGVOICE=["groanM","groanF","groanM","groanM","groanF"];
+const SPEAKER_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9Z" fill="currentColor"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
+const SPEAKER_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9Z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/></svg>';
+const NOTE_ON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3" fill="currentColor"/><circle cx="17" cy="16" r="3" fill="currentColor"/></svg>';
+const NOTE_OFF='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3" fill="currentColor"/><circle cx="17" cy="16" r="3" fill="currentColor"/><path d="M3 3l18 18"/></svg>';
+function paintMus(){ const b=document.getElementById("musBtn"), on=SND.musicOn; b.setAttribute("aria-pressed",String(on)); b.innerHTML=(on?NOTE_ON:NOTE_OFF)+`<span>${on?"Music on":"Music off"}</span>`; b.setAttribute("aria-label",on?"Turn music off":"Turn music on"); }
+document.getElementById("musBtn").addEventListener("click",()=>{ SND.setMusic(!SND.musicOn); paintMus(); });
+paintMus();
+function paintSnd(){ const b=document.getElementById("sndBtn"); b.setAttribute("aria-pressed",String(!SND.muted)); b.innerHTML=(SND.muted?SPEAKER_OFF:SPEAKER_ON)+`<span>${SND.muted?"Effects off":"Effects on"}</span>`; b.setAttribute("aria-label",SND.muted?"Turn sound on":"Turn sound off"); }
+document.getElementById("sndBtn").addEventListener("click",()=>{ SND.setMuted(!SND.muted); paintSnd(); });
+paintSnd();
+
+// heart monitor: 54 beats/min, matched to the ECG sweep
+let monTimer=null;
+function startMonitor(){ clearTimeout(monTimer); const go=()=>{ if(!document.querySelector("#s-game:not([hidden]) .ecg")) { monTimer=null; return; } SND.beep(); monTimer=setTimeout(go,1111); }; monTimer=setTimeout(go,470); }
+
+// start-screen corridor: door creaks, thuds and voices in step with the animation
+const DOORS=[{d:0,v:"groanM"},{d:1.5,v:null},{d:4,v:"groanF"},{d:6.5,v:"groanM"}];
+const lastPh=DOORS.map(()=>-1); let ambCycle=0;
+setInterval(()=>{
+  const sv=document.querySelector("#s-start:not([hidden]) #corrArt svg");
+  if(!sv||!SND.ok()||!sv.getCurrentTime) return;
+  const t=sv.getCurrentTime();
+  DOORS.forEach((dr,i)=>{
+    if(t<dr.d) return;
+    const cyc=Math.floor((t-dr.d)/10), ph=((t-dr.d)%10)/10, lp=lastPh[i]; lastPh[i]=ph;
+    if(lp<0) return;
+    const cross=x=>lp<x&&ph>=x;
+    if(cross(.27) && dr.v && cyc%2===0) SND.voice(dr.v);
+  });
+},100);
+
+/* ---------------- helpers ---------------- */
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nowS = ()=>Math.floor(Date.now()/1000);
+const fmtClock = s=>{s=Math.max(0,Math.round(s));return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");};
+const fmtDT = s=>s?new Date(s*1000).toLocaleString(undefined,{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"}):"—";
+const isoDT = s=>{if(!s)return"";const d=new Date(s*1000),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());};
+function toast(t){const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2200);}
+function store(k,v){try{v===undefined?localStorage.removeItem(k):localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function load(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
+function fnv(str){let h=0x811c9dc5;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return h.toString(36).padStart(7,"0").slice(-7);}
+function b64e(s){return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
+function b64d(s){s=s.replace(/-/g,"+").replace(/_/g,"/");while(s.length%4)s+="=";return decodeURIComponent(escape(atob(s)));}
+async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Copied");return true;}catch(e){return false;}}
+
+/* ---------------- state ---------------- */
+let S = null;      // current run
+let tick = null;
+let ui = {sel:[], code:"", msg:null, showHint:false};
+const voiced = new Set();
+
+function newRun(stu){
+  return {v:1, aid: nowS().toString(36)+Math.random().toString(36).slice(2,6), stu, start:nowS(), end:0, outcome:"P",
+    idx:0, phase:"puzzle", res:PUZ.map(()=>({pts:0,wrong:0,hint:0,clues:1,done:0})), lastWrongSel:null};
+}
+function score(run){return run.res.reduce((a,r)=>a+(r.done?r.pts:0),0);}
+function roomScore(run,ri){let s=0;PUZ.forEach((p,i)=>{if(p.room===ri&&run.res[i].done)s+=run.res[i].pts;});return s;}
+function roomMax(ri){return ROOMS[ri].puzzles.length*10;}
+function persist(){store(KEY,S);}
+
+/* ---------------- results code ---------------- */
+function resString(run){
+  return run.res.map(r=>r.done?(r.pts.toString(36)+r.wrong+r.hint+r.clues):"----").join("");
+}
+function buildCode(run){
+  const p = {v:1,id:run.stu.id,g:run.stu.g,n:run.stu.n,s:run.start,e:run.end,o:run.outcome,a:run.aid,r:resString(run)};
+  if(run.survey&&run.survey.done){ p.q = run.survey.a.map(x=>x||0).join(""); if(run.survey.c) p.c = run.survey.c.slice(0,500); }
+  const body = b64e(JSON.stringify(p));
+  return "N314-"+body+"."+fnv(body+SALT);
+}
+function parseCode(code){
+  code = code.trim();
+  const m = /^N314-([A-Za-z0-9_-]+)\.([0-9a-z]{7})$/.exec(code);
+  if(!m) return null;
+  try{
+    const p = JSON.parse(b64d(m[1]));
+    p.verified = fnv(m[1]+SALT)===m[2];
+    p.code = code;
+    return decodeRecord(p);
+  }catch(e){return null;}
+}
+function decodeRecord(p){
+  const res = [];
+  for(let i=0;i<PUZ.length;i++){
+    const c = (p.r||"").substr(i*4,4);
+    if(!c||c==="----") res.push(null);
+    else res.push({pts:parseInt(c[0],36),wrong:+c[1],hint:+c[2],clues:+c[3],done:1});
+  }
+  const total = res.reduce((a,r)=>a+(r?r.pts:0),0);
+  return {id:String(p.id||""),g:String(p.g||""),n:String(p.n||""),s:p.s||0,e:p.e||0,o:p.o||"P",a:p.a||"",res,total,
+    verified:p.verified!==false, code:p.code||"", src:p.src||"code",
+    q:(p.q||"").split("").map(Number), c:String(p.c||""), surveyed:!!p.q};
+}
+
+/* ---------------- shared saving (db) ---------------- */
+let DB=null, USER=null, UID=null, writeChain=Promise.resolve(), capsReady=Promise.resolve(), saveState="pending";
+async function initCaps(){
+  if(!window.claude||!window.claude.use) { saveState="off"; return; }
+  try{
+    const [db,user] = await Promise.all([window.claude.use("db"),window.claude.use("user")]);
+    DB=db; USER=user;
+    if(user) UID = await user.id();
+    if(!DB||!UID) saveState="off";
+  }catch(e){saveState="off";}
+}
+function saveRemote(){
+  if(!S) return Promise.resolve(false);
+  const rec = {code:buildCode(S), updated:nowS()};
+  const aid = S.aid;
+  writeChain = writeChain.then(()=>capsReady).then(async()=>{
+    if(!DB||!UID) return;
+    const ref = DB.doc("results/"+UID);
+    try{
+      const snap = await ref.get();
+      if(snap.exists) await ref.update({attempts:{[aid]:rec}});
+      else await ref.set({attempts:{[aid]:rec}});
+      saveState="ok";
+    }catch(e){ saveState="off"; }
+  });
+  return writeChain;
+}
+
+/* ---------------- screens ---------------- */
+function show(id){
+  ["s-start","s-game","s-survey","s-end","s-teacher"].forEach(s=>$("#"+s).hidden = s!==id);
+  $("#statusbar").hidden = id!=="s-game";
+  $("#app").classList.toggle("wide", id==="s-teacher");
+  window.scrollTo(0,0);
+}
+
+function renderStart(){
+  show("s-start");
+  if(!$("#corrArt").innerHTML) $("#corrArt").innerHTML = corridor();
+  const prev = load(KEY);
+  $("#resumeBtn").hidden = !(prev && prev.outcome==="P" && nowS()-prev.start < LIMIT);
+  $("#lastBtn").hidden = !(prev && prev.outcome!=="P");
+  if(prev && prev.stu){ $("#fId").value=prev.stu.id; $("#fGroup").value=prev.stu.g; $("#fInst").value=prev.stu.n; }
+}
+
+$("#loginForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const id=$("#fId").value.trim(), g=$("#fGroup").value.trim(), n=$("#fInst").value.trim();
+  if(!/^\d{5,12}$/.test(id)) return $("#loginErr").textContent="Enter your student ID using numbers only.";
+  if(!g) return $("#loginErr").textContent="Enter your group number.";
+  if(!n) return $("#loginErr").textContent="Enter your instructor's name.";
+  $("#loginErr").textContent="";
+  S = newRun({id,g:g.slice(0,20),n:n.slice(0,60)});
+  persist(); saveRemote(); startGame();
+});
+$("#resumeBtn").addEventListener("click",()=>{S=load(KEY); if(S) startGame();});
+$("#lastBtn").addEventListener("click",()=>{S=load(KEY); if(S) (S.survey&&S.survey.done?renderEnd():renderSurvey());});
+window.addEventListener("hashchange",()=>{ if(location.hash==="#instructor") renderTeacher(); });
+$("#backStart").addEventListener("click",()=>renderStart());
+
+function startGame(){
+  show("s-game");
+  ui={sel:[],code:"",msg:null,showHint:false};
+  clearInterval(tick); tick=setInterval(updateClock,1000); updateClock();
+  renderGame();
+}
+function remaining(){return LIMIT-(nowS()-S.start);}
+function updateClock(){
+  if(!S||S.outcome!=="P"){clearInterval(tick);return;}
+  const r = remaining();
+  const c=$("#clock"); c.textContent=fmtClock(r); c.classList.toggle("low",r<=120);
+  if(r>0 && r<=60) SND.tick();
+  if(r<=0) finish("T");
+}
+function renderBar(){
+  const cur = S.idx<PUZ.length?PUZ[S.idx].room:5;
+  $("#corridor").innerHTML = ROOMS.map((r,i)=>{
+    const cls = i<cur||(S.phase==="roomclear"&&i===cur)?"done":i===cur?"here":"";
+    return `<div class="door ${cls}" title="Room ${i+1}: ${esc(r.title)}">${cls==="done"?"✓":i+1}</div>`;
+  }).join("");
+  $("#ptsLabel").textContent = score(S)+" pts";
+}
+
+function renderGame(){
+  renderBar();
+  const g=$("#s-game");
+  if(S.phase==="roomclear"){
+    const ri = PUZ[S.idx].room, last = ri===ROOMS.length-1;
+    g.innerHTML = `<div class="card unlock">
+      <div class="lock" style="width:100%;max-width:520px">${corridor("open", ri+2)}</div>
+      <span class="label">Room ${ri+1} cleared</span>
+      <h2>${last?"The exit door is open":"Door unlocked"}</h2>
+      <p class="mono">${roomScore(S,ri)} / ${roomMax(ri)} points in this room</p>
+      <button class="btn" id="nextRoom">${last?"Walk out":"Enter Room "+(ri+2)}</button></div>`;
+    $("#nextRoom").onclick=()=>{ if(last) finish("E"); else { S.idx++; S.phase="puzzle"; ui={sel:[],code:"",msg:null,showHint:false}; persist(); renderGame(); window.scrollTo(0,0);} };
+    $("#nextRoom").focus();
+    if(last) SND.success(); else SND.correct();
+    return;
+  }
+  const p = PUZ[S.idx], r = S.res[S.idx], room = ROOMS[p.room];
+  const inRoom = room.puzzles.indexOf(p)+1;
+  const first = inRoom===1;
+  g.style.setProperty("--rc", ROOMCOL[p.room]);
+  let h = `<div class="sign"><div class="ic">${roomIcon(p.room)}</div><div class="roomhead"><span class="label">Room ${p.room+1} · ${esc(room.unit)}</span><h2>${esc(room.title)}</h2></div><span class="num" aria-hidden="true">0${p.room+1}</span></div>`;
+  if(first && S.phase==="puzzle" && !r.wrong && !r.hint){ h += `<p style="color:#cfdce3">${esc(room.intro)}</p>`; if(!voiced.has(p.room)){ voiced.add(p.room); const vn=ROOMVOICE[p.room]; if(vn) setTimeout(()=>SND.voice(vn),700); } }
+  h += `<div class="charts ${room.patients.length>1?"two":""}">${room.patients.map(pt=>`<div class="chart"><div class="top">${avatar(pt.av,"Illustration of "+pt.name)}<div><div class="nm">${esc(pt.name)}</div><div class="meta">${esc(pt.age)} · ${esc(pt.bed)} · ${esc(pt.mrn)}</div><div class="dx">${esc(pt.dx)}</div><div class="chips">${pt.tags.map((t,i)=>`<span class="chip ${/Temp|SpO|Weight|pending/.test(t)?"alert":""}">${esc(t)}</span>`).join("")}</div></div></div><div class="bubble"><q>${esc(pt.says)}</q><span class="by">${esc(pt.by)}</span></div></div>`).join("")}</div>`;
+  h += `<div class="card stack"><div class="row" style="justify-content:space-between"><span class="prog">Puzzle ${inRoom} of ${room.puzzles.length}</span><span class="prog ti">${typeIcon(p.type)}${typeLabel(p.type)}</span></div>`;
+  if(p.monitor) h += `<div class="monitor">${ecg()}<table><thead><tr><th>Time</th><th>BP</th><th>HR</th><th>Resp</th></tr></thead><tbody>${p.monitor.map(m=>`<tr><td>${m[0]}</td><td class="bp">${m[1]}</td><td class="hr">${m[2]}</td><td class="rr">${m[3]}</td></tr>`).join("")}</tbody></table></div>`;
+  h += `<p class="prompt">${esc(p.prompt)}</p>`;
+  h += `<div id="pzBody"></div>`;
+  if(S.phase==="puzzle"){
+    if(ui.msg) h += `<div class="msg warn" role="status">${esc(ui.msg)}</div>`;
+    if(r.hint) h += `<div class="msg hint"><b>Hint:</b> ${esc(p.hint)}</div>`;
+    h += `<div class="row"><button class="btn" id="submitBtn">Check answer</button>${r.hint?"":`<button class="btn ghost" id="hintBtn">Use a hint (−3)</button>`}</div>`;
+  } else {
+    h += `<div class="fb ${r.wrong>=2?"no":"ok"}"><h3>${r.wrong>=2?"Answer revealed · 0 points":"Correct · +"+r.pts+" points"}</h3><p>${esc(p.explain)}</p></div>`;
+    h += `<div class="row"><button class="btn" id="contBtn">Continue</button></div>`;
+  }
+  h += `</div>`;
+  g.innerHTML = h;
+  renderBody(p,r);
+  if(p.monitor) startMonitor();
+  if(S.phase==="puzzle"){
+    $("#submitBtn").onclick=submit;
+    const hb=$("#hintBtn"); if(hb) hb.onclick=()=>{r.hint=1;SND.hint();persist();renderGame();};
+  } else {
+    $("#contBtn").onclick=advance; $("#contBtn").focus();
+  }
+}
+function typeLabel(t){return {mcq:"Single best answer",multi:"Select all that apply",match:"Match",code:"Door keypad",detective:"Detective"}[t];}
+
+function renderBody(p,r){
+  const b=$("#pzBody"), done=S.phase!=="puzzle", revealed=done;
+  if(p.type==="mcq"||p.type==="detective"){
+    let h="";
+    if(p.type==="detective"){
+      h+=`<div class="clues">${p.clues.slice(0,done?p.clues.length:r.clues).map(c=>`<div class="clue">${esc(c)}</div>`).join("")}</div>`;
+      if(!done && r.clues<p.clues.length) h+=`<div><button class="btn ghost small" id="clueBtn">Reveal next clue (−2)</button></div>`;
+    }
+    h+=`<div class="opts" role="radiogroup">${p.options.map((o,i)=>{
+      let c=""; if(revealed){ if(i===p.answer)c="ok"; else if(ui.sel.includes(i))c="no"; } else if(ui.sel.includes(i)) c="sel";
+      return `<button class="opt ${c}" data-i="${i}" role="radio" aria-checked="${ui.sel.includes(i)}" ${done?"disabled":""}><span class="k">${"ABCDEF"[i]}</span><span>${esc(o)}</span></button>`;}).join("")}</div>`;
+    b.innerHTML=h;
+    b.querySelectorAll(".opt").forEach(el=>el.onclick=()=>{SND.click();ui.sel=[+el.dataset.i];renderBody(p,r);});
+    const cb=$("#clueBtn"); if(cb) cb.onclick=()=>{r.clues++;SND.hint();persist();renderBody(p,r);};
+  }
+  if(p.type==="multi"){
+    b.innerHTML=`<div class="opts">${p.options.map((o,i)=>{
+      const on=ui.sel.includes(i); let c=on?"sel":"";
+      if(revealed){ c = p.correct.includes(i)?"ok":(on?"no":""); }
+      return `<button class="opt ${c}" data-i="${i}" role="checkbox" aria-checked="${on}" ${done?"disabled":""}><span class="k">${revealed?(p.correct.includes(i)?"✓":"✗"):(on?"■":"□")}</span><span>${esc(o)}</span></button>`;}).join("")}</div>`;
+    b.querySelectorAll(".opt").forEach(el=>el.onclick=()=>{SND.click();const i=+el.dataset.i;ui.sel=ui.sel.includes(i)?ui.sel.filter(x=>x!==i):[...ui.sel,i];renderBody(p,r);});
+  }
+  if(p.type==="match"){
+    if(ui.sel.length!==p.items.length) ui.sel=p.items.map(()=>-1);
+    b.innerHTML=`<div class="match">${p.items.map((it,i)=>{
+      let c=""; if(revealed) c = ui.sel[i]===it[1]?"ok":"no";
+      return `<div class="mrow ${c}"><span class="t">${esc(it[0])}</span><select id="m${S.idx}_${i}" data-i="${i}" ${done?"disabled":""} aria-label="Match for: ${esc(it[0])}"><option value="-1">Choose…</option>${p.choices.map((ch,ci)=>`<option value="${ci}" ${ui.sel[i]===ci?"selected":""}>${esc(ch)}</option>`).join("")}</select>${revealed&&ui.sel[i]!==it[1]?`<span class="fix">Correct: ${esc(p.choices[it[1]])}</span>`:""}</div>`;}).join("")}</div>`;
+    b.querySelectorAll("select").forEach(el=>el.onchange=()=>{ui.sel[+el.dataset.i]=+el.value;});
+  }
+  if(p.type==="code"){
+    b.innerHTML=`<div class="lcd mono" aria-live="polite">${revealed?esc(p.answer):(ui.code?esc(ui.code):"_")}</div>${done?"":`<div class="keypad">${[1,2,3,4,5,6,7,8,9,"⌫",0,"C"].map(k=>`<button type="button" data-k="${k}" aria-label="${k==="⌫"?"Delete":k==="C"?"Clear":k}">${k}</button>`).join("")}</div>`}`;
+    b.querySelectorAll(".keypad button").forEach(el=>el.onclick=()=>{const k=el.dataset.k; SND.key(k); if(k==="C")ui.code=""; else if(k==="⌫")ui.code=ui.code.slice(0,-1); else if(ui.code.length<4) ui.code+=k; b.querySelector(".lcd").textContent=ui.code||"_";});
+  }
+}
+
+function check(p){
+  if(p.type==="mcq"||p.type==="detective"){ if(!ui.sel.length) return {empty:"Choose an answer first."}; return {ok:ui.sel[0]===p.answer}; }
+  if(p.type==="multi"){ if(!ui.sel.length) return {empty:"Select at least one option."};
+    const wrong = p.options.filter((_,i)=>ui.sel.includes(i)!==p.correct.includes(i)).length;
+    return {ok:wrong===0, detail:`${wrong} of your choices ${wrong===1?"is":"are"} off (a wrong pick or a missed one).`}; }
+  if(p.type==="match"){ if(ui.sel.some(v=>v<0)) return {empty:"Make a match for every row."};
+    const wrong = p.items.filter((it,i)=>ui.sel[i]!==it[1]).length;
+    return {ok:wrong===0, detail:`${wrong} of ${p.items.length} matches ${wrong===1?"is":"are"} wrong.`}; }
+  if(p.type==="code"){ if(!ui.code) return {empty:"Enter a code on the keypad."}; return {ok:ui.code===p.answer}; }
+}
+function submit(){
+  const p=PUZ[S.idx], r=S.res[S.idx], c=check(p);
+  if(c.empty){ ui.msg=c.empty; return renderGame(); }
+  if(c.ok){
+    r.done=1; r.pts=Math.max(0,10-4*r.wrong-3*r.hint-(p.type==="detective"?2*(r.clues-1):0));
+    S.phase="feedback"; ui.msg=null; SND.correct();
+  } else {
+    r.wrong++; SND.wrong(); SND.voice(WRONGVOICE[p.room],.35);
+    if(r.wrong>=2){ r.done=1; r.pts=0; S.phase="feedback"; ui.msg=null; }
+    else { ui.msg = "Not quite. "+(c.detail?c.detail+" ":"")+"Try once more (−4). After a second miss the answer is shown."; if(p.type==="code") ui.code=""; }
+  }
+  persist(); renderGame();
+}
+function advance(){
+  const p=PUZ[S.idx], next=PUZ[S.idx+1];
+  ui={sel:[],code:"",msg:null,showHint:false};
+  if(!next || next.room!==p.room){ S.phase="roomclear"; persist(); saveRemote(); renderGame(); window.scrollTo(0,0); return; }
+  S.idx++; S.phase="puzzle"; persist(); renderGame(); window.scrollTo(0,0);
+}
+function finish(outcome){
+  if(S.outcome!=="P") return;
+  clearInterval(tick);
+  if(outcome==="T") SND.alarm();
+  S.outcome=outcome; S.end = outcome==="T" ? Math.min(nowS(), S.start+LIMIT) : nowS();
+  persist(); saveRemote();
+  renderSurvey();
+}
+function renderSurvey(){
+  show("s-survey");
+  if(!S.survey||S.survey.a.length!==SURVEY.length) S.survey={a:SURVEY.map(()=>0),c:"",done:0};
+  const sv=S.survey;
+  const answered=()=>sv.a.filter(Boolean).length;
+  $("#s-survey").innerHTML = `
+  <div class="hero" dir="ltr" lang="en">${S.outcome==="E"?exitArt():lockArt()}<span class="tag">${S.outcome==="E"?"SHIFT COMPLETE":"TIME RAN OUT"} · ONE LAST STEP</span></div>
+  <div class="stack" dir="rtl" lang="ar">
+   <h1>قبل أن ترى نتيجتك</h1>
+   <p class="lede">مقياس تجربة التعليم بالتلعيب. اختر رقمًا واحدًا لكل عبارة يعبّر عن مدى موافقتك عليها. لا توجد إجابات صحيحة أو خاطئة.</p>
+   <div class="card stack">
+    <div class="legend" aria-hidden="true">${SCALE_AR.map((l,i)=>`<span><b>${i+1}</b>${l}</span>`).join("")}</div>
+    ${SURVEY_GROUPS.map((g,gi)=>`<div class="sgroup"><h3>${esc(g.ar)}</h3>${SURVEY.map((x,i)=>x.g!==gi?"":`<div class="lik" id="lk${i}"><span class="q" id="sq${i}">${i+1}. ${esc(x.t)}</span>
+      <div class="scale" role="radiogroup" aria-labelledby="sq${i}">${[1,2,3,4,5].map(v=>`<button type="button" role="radio" data-q="${i}" data-v="${v}" aria-checked="${sv.a[i]===v}" aria-label="${v} ${SCALE_AR[v-1]}">${v}</button>`).join("")}</div></div>`).join("")}</div>`).join("")}
+    <div class="lik"><label class="q" for="openAns">${SURVEY.length+1}. ${esc(OPENQ)}</label>
+      <textarea id="openAns" maxlength="500" dir="auto" style="font-family:var(--f-ar);font-size:1rem" placeholder="اكتب إجابتك هنا">${esc(sv.c)}</textarea>
+      <span class="count" id="openCount" style="text-align:left">${sv.c.length} / 500</span></div>
+    <div class="err" id="surveyErr"></div>
+    <div class="row"><button class="btn" id="surveyGo" type="button">إرسال وعرض نتيجتي</button><span class="sprog" id="sprog">أجبت عن ${answered()} من ${SURVEY.length}</span></div>
+   </div>
+  </div>`;
+  $("#s-survey").querySelectorAll(".scale button").forEach(b=>b.onclick=()=>{
+    sv.a[+b.dataset.q]=+b.dataset.v; persist();
+    b.parentNode.querySelectorAll("button").forEach(x=>x.setAttribute("aria-checked", x===b));
+    b.closest(".lik").classList.remove("missing");
+    $("#sprog").textContent=`أجبت عن ${answered()} من ${SURVEY.length}`;
+  });
+  const ta=$("#openAns"); ta.oninput=()=>{sv.c=ta.value; $("#openCount").textContent=ta.value.length+" / 500";};
+  ta.onchange=persist;
+  $("#surveyGo").onclick=()=>{
+    sv.c=ta.value.trim();
+    const miss=sv.a.map((v,i)=>v?0:i+1).filter(Boolean);
+    if(miss.length){ miss.forEach(n=>$("#lk"+(n-1)).classList.add("missing")); $("#surveyErr").textContent="يرجى الإجابة عن البنود التالية: "+miss.join("، "); $("#lk"+(miss[0]-1)).scrollIntoView({block:"center"}); return; }
+    if(sv.c.length<3){ $("#surveyErr").textContent="يرجى الإجابة عن السؤال الأخير بجملة أو جملتين."; ta.focus(); return; }
+    sv.done=1; persist(); saveRemote().then(()=>{ if(!$("#s-end").hidden) updateSaved(); });
+    renderEnd();
+  };
+}
+
+/* ---------------- end screen ---------------- */
+function renderEnd(){
+  show("s-end");
+  const sc=score(S), pct=Math.round(sc/MAX*100), used=(S.end||nowS())-S.start;
+  const reviewItems = PUZ.map((p,i)=>({p,r:S.res[i]})).filter(x=>x.r.done&&(x.r.wrong||x.r.hint));
+  const missed = PUZ.filter((p,i)=>!S.res[i].done);
+  const code = buildCode(S);
+  $("#s-end").innerHTML = `
+  <div class="hero">${S.outcome==="E"?exitArt():lockArt()}<span class="tag">${S.outcome==="E"?"SHIFT COMPLETE":"TIME RAN OUT"}</span>
+   <h1>${S.outcome==="E"?"You escaped the Neuro Unit":"The doors stayed locked"}</h1>
+   <p class="lede">${S.outcome==="E"?"Every patient got safe care tonight. Look over the feedback below before your next shift.":"Time ran out before you reached the exit. The puzzles you didn't reach score 0. Read the feedback below to see what to review."}</p></div>
+  <div class="card stack">
+   <div class="row" style="align-items:flex-end;gap:24px"><div><span class="label">Score</span><div class="big">${sc}<span style="font-size:.45em;color:var(--muted)"> / ${MAX}</span></div></div><div><span class="label">Grade</span><div class="big">${pct}%</div></div></div>
+   <div class="stats">
+    <div class="stat"><span class="label">Student ID</span><b>${esc(S.stu.id)}</b></div>
+    <div class="stat"><span class="label">Group</span><b>${esc(S.stu.g)}</b></div>
+    <div class="stat"><span class="label">Entered</span><b style="font-size:1rem">${fmtDT(S.start)}</b></div>
+    <div class="stat"><span class="label">Left</span><b style="font-size:1rem">${fmtDT(S.end)}</b></div>
+    <div class="stat"><span class="label">Time used</span><b>${fmtClock(used)}</b></div>
+   </div>
+   <div class="bars">${ROOMS.map((r,i)=>{const s=roomScore(S,i),m=roomMax(i);return `<div class="bar"><span>${i+1}. ${esc(r.title)}</span><div class="tr"><div class="fl" style="width:${s/m*100}%"></div></div><span class="mono">${s}/${m}</span></div>`;}).join("")}</div>
+  </div>
+  <div class="card stack">
+   <h3>Your results code</h3>
+   <p id="savedLine" class="saved"></p>
+   <div class="codebox" id="codeBox">${esc(code)}</div>
+   <div class="row"><button class="btn small" id="copyCode">Copy code</button></div>
+  </div>
+  <div class="card stack">
+   <h3>Feedback to review</h3>
+   ${reviewItems.length||missed.length?"":`<p>A perfect run with no mistakes and no hints. Nothing to review.</p>`}
+   <div class="review">${reviewItems.map(x=>`<div class="it ${x.r.wrong?"":"h"}"><b>Room ${x.p.room+1} · ${esc(x.p.title)}</b> <span class="saved">(${[x.r.wrong?x.r.wrong+" wrong attempt"+(x.r.wrong>1?"s":""):"",x.r.hint?"hint used":""].filter(Boolean).join(", ")} · ${x.r.pts}/10)</span><p>${esc(x.p.explain)}</p></div>`).join("")}
+   ${missed.length?`<div class="it"><b>Not reached (${missed.length})</b><p>${missed.map(p=>esc(p.title)).join(" · ")}</p></div>`:""}</div>
+  </div>
+  <div class="row"><button class="btn ghost" id="again">Back to start</button></div>`;
+  updateSaved();
+  $("#copyCode").onclick=async()=>{ if(!await copyText(code)){ const r=document.createRange();r.selectNodeContents($("#codeBox"));const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Code selected. Copy it now"); } };
+  $("#again").onclick=()=>renderStart();
+}
+function updateSaved(){
+  const el=$("#savedLine"); if(!el) return;
+  if(saveState==="ok"){ el.className="saved ok"; el.textContent="Your result was saved and sent to your instructor. Keep this code as a backup."; }
+  else { el.className="saved"; el.textContent="Copy this code and submit it the way your instructor asked (for example, on Blackboard). Your instructor uses it to record your score."; }
+}
+
+/* ---------------- instructor ---------------- */
+const ROWS = new Map(); let liveUnsub=null, openRow=null;
+function rowKey(r){return r.id+"|"+r.s+"|"+r.a;}
+function addRow(r){
+  const k=rowKey(r), old=ROWS.get(k);
+  if(!old || (r.e && !old.e) || (r.e>=old.e && r.total>=old.total)) ROWS.set(k, Object.assign({}, r, {src: old&&old.src!==r.src?"both":r.src}));
+}
+async function renderTeacher(){
+  show("s-teacher");
+  renderTable();
+  const note=$("#liveNote");
+  if(!DB){ note.textContent="Automatic saving isn't available in this view. Paste students' results codes below instead."; return; }
+  const owner = USER ? await USER.isOwner() : false;
+  const editor = USER ? await USER.canEdit() : false;
+  if(!owner && !editor){ note.textContent="Only the instructor who owns this game sees saved results here. You can still paste results codes below."; return; }
+  if(liveUnsub) return;
+  note.textContent="Loading saved results…";
+  const timer=setTimeout(()=>{note.textContent="Saved results can't be reached right now. Pasted codes still work.";},10000);
+  liveUnsub = DB.collection("results").onSnapshot(snap=>{
+    if(!snap.metadata.fromCache) clearTimeout(timer);
+    let n=0;
+    snap.docs.forEach(d=>{ const att=(d.data()||{}).attempts||{}; Object.values(att).forEach(a=>{ const r=a&&a.code?parseCode(a.code):null; if(r){r.src="saved";addRow(r);n++;} }); });
+    note.className="saved"+(n?" ok":"");
+    note.textContent = n? `${n} attempt${n>1?"s":""} saved automatically by students who were signed in.` : "No results have been saved automatically yet. Students who aren't signed in to Claude send you their results code instead.";
+    renderTable();
+  }, ()=>{ clearTimeout(timer); note.textContent="Saved results couldn't load. Pasted codes still work."; });
+}
+$("#addCodes").addEventListener("click",()=>{
+  const txt=$("#codesIn").value; const found=txt.match(/N314-[A-Za-z0-9_-]+\.[0-9a-z]{7}/g)||[];
+  let ok=0,bad=0; found.forEach(c=>{const r=parseCode(c); if(r){addRow(r);ok++;} else bad++;});
+  $("#codeMsg").textContent = found.length? `Added ${ok} code${ok===1?"":"s"}${bad?`, ${bad} couldn't be read`:""}.` : "No results codes found in that text. Codes start with N314-.";
+  if(ok) $("#codesIn").value="";
+  renderTable();
+});
+$("#grpFilter").addEventListener("change",renderTable);
+
+function rowsFiltered(){
+  const g=$("#grpFilter").value;
+  return [...ROWS.values()].filter(r=>!g||r.g===g).sort((a,b)=>(a.g.localeCompare(b.g,undefined,{numeric:true}))||a.id.localeCompare(b.id)||a.s-b.s);
+}
+function outcomeLabel(o){return o==="E"?"Escaped":o==="T"?"Time ran out":"In progress / left early";}
+function feedbackFor(r){
+  return PUZ.map((p,i)=>({p,x:r.res[i]})).filter(o=>o.x&&(o.x.wrong||o.x.hint));
+}
+function renderSurveySummary(rows){
+  const card=$("#surveyCard"), sv=rows.filter(r=>r.surveyed&&r.q.length===SURVEY.length);
+  if(!sv.length){ card.hidden=true; return; }
+  card.hidden=false;
+  const avgItem=i=>{const v=sv.map(r=>r.q[i]).filter(x=>x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:0;};
+  const avgSub=gi=>{const v=sv.map(r=>subscale(r.q,gi)).filter(x=>x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:0;};
+  const cm=sv.filter(r=>r.c);
+  card.innerHTML=`<div class="row" style="justify-content:space-between"><h3>Student survey (GAMEX)</h3><span class="saved">${sv.length} response${sv.length>1?"s":""} · mean out of 5</span></div>
+   <span class="label">Sub-dimension means</span>
+   <div class="bars">${SURVEY_GROUPS.map((g,gi)=>{const a=avgSub(gi);return `<div class="bar"><span>${esc(g.en)}${g.reverse?" (reverse-scored)":""}</span><div class="tr"><div class="fl" style="width:${a/5*100}%"></div></div><span class="mono">${a.toFixed(2)}</span></div>`;}).join("")}</div>
+   <details><summary class="label" style="cursor:pointer">Item means (all ${SURVEY.length} items, raw answers)</summary>
+    <div class="bars" dir="rtl" lang="ar" style="margin-top:10px">${SURVEY.map((x,i)=>{const a=avgItem(i);return `<div class="bar"><span>${i+1}. ${esc(x.t)}</span><div class="tr"><div class="fl" style="width:${a/5*100}%"></div></div><span class="mono">${a.toFixed(1)}</span></div>`;}).join("")}</div></details>
+   <span class="label ar" dir="rtl" style="text-transform:none;letter-spacing:0;font-size:.9rem">${esc(OPENQ)}</span>
+   <div class="comments" dir="rtl">${cm.length?cm.map(r=>`<blockquote dir="auto" class="ar">${esc(r.c)}<cite dir="ltr">${esc(r.id)} · Group ${esc(r.g)}</cite></blockquote>`).join(""):`<p class="saved">No written answers yet.</p>`}</div>`;
+}
+function renderTable(){
+  const sel=$("#grpFilter"), cur=sel.value, groups=[...new Set([...ROWS.values()].map(r=>r.g))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  sel.innerHTML=`<option value="">All groups</option>`+groups.map(g=>`<option ${g===cur?"selected":""}>${esc(g)}</option>`).join("");
+  const rows=rowsFiltered(), body=$("#resBody");
+  renderSurveySummary(rows);
+  $("#rowCount").textContent = ROWS.size? `${rows.length} attempt${rows.length===1?"":"s"}`:"";
+  if(!rows.length){ body.innerHTML=`<tr><td colspan="11" class="saved" style="padding:18px">No results yet. Saved results and pasted codes appear here. Click a row to see the feedback that student received.</td></tr>`; return; }
+  body.innerHTML = rows.map(r=>{
+    const k=rowKey(r), mistakes=r.res.reduce((a,x)=>a+(x?x.wrong:0),0), hints=r.res.reduce((a,x)=>a+(x?x.hint:0),0);
+    const pill = r.o==="E"?"e":r.o==="T"?"t":"p";
+    let h=`<tr class="main" data-k="${esc(k)}" tabindex="0"><td><b>${esc(r.id)}</b>${r.verified?"":` <span class="pill warn" title="This code was changed after it was created">edited</span>`}</td><td>${esc(r.g)}</td><td>${esc(r.n)}</td><td>${fmtDT(r.s)}</td><td>${r.e?fmtDT(r.e):"—"}</td><td class="mono">${r.e?fmtClock(r.e-r.s):"—"}</td><td class="mono">${r.total}/${MAX}</td><td class="mono"><b>${Math.round(r.total/MAX*100)}%</b></td><td><span class="pill ${pill}">${outcomeLabel(r.o)}</span></td><td class="mono">${mistakes}</td><td class="mono">${hints}</td></tr>`;
+    if(openRow===k){
+      const fb=feedbackFor(r), nr=PUZ.filter((p,i)=>!r.res[i]);
+      h+=`<tr class="detail"><td colspan="11"><div class="dgrid">
+       <div class="bars">${ROOMS.map((rm,i)=>{let s=0;PUZ.forEach((p,j)=>{if(p.room===i&&r.res[j])s+=r.res[j].pts;});const m=roomMax(i);return `<div class="bar"><span>${i+1}. ${esc(rm.title)}</span><div class="tr"><div class="fl" style="width:${s/m*100}%"></div></div><span class="mono">${s}/${m}</span></div>`;}).join("")}</div>
+       <div><span class="label">Feedback this student received</span></div>
+       <div class="review">${fb.length?fb.map(o=>`<div class="it ${o.x.wrong?"":"h"}"><b>Room ${o.p.room+1} · ${esc(o.p.title)}</b> <span class="saved">(${o.x.wrong?o.x.wrong+" wrong":""}${o.x.wrong&&o.x.hint?", ":""}${o.x.hint?"hint used":""}${o.p.type==="detective"&&o.x.clues>1?", "+o.x.clues+" clues":""} · ${o.x.pts}/10)</span><p>${esc(o.p.explain)}</p></div>`).join(""):`<p class="saved">No mistakes and no hints.</p>`}
+       ${nr.length?`<div class="it"><b>Not reached (${nr.length})</b><p>${nr.map(p=>esc(p.title)).join(" · ")}</p></div>`:""}</div>
+       <div><span class="label">Survey</span></div>
+       ${r.surveyed?`<div class="review"><div class="saved">${SURVEY_GROUPS.map((g,gi)=>`${esc(g.en)}: <b class="mono" style="color:var(--ink)">${subscale(r.q,gi).toFixed(2)}</b>`).join(" · ")}</div><details><summary class="saved" style="cursor:pointer">All ${SURVEY.length} answers</summary><div dir="rtl" lang="ar" style="display:grid;gap:4px;margin-top:8px">${SURVEY.map((x,i)=>`<div class="saved">${i+1}. ${esc(x.t)} <b class="mono" style="color:var(--ink)">${r.q[i]||"–"}</b></div>`).join("")}</div></details><div class="comments" dir="rtl"><blockquote dir="auto" class="ar">${r.c?esc(r.c):"No written answer."}</blockquote></div></div>`:`<p class="saved">Not submitted.</p>`}
+      </div></td></tr>`;
+    }
+    return h;
+  }).join("");
+  body.querySelectorAll("tr.main").forEach(tr=>{const go=()=>{openRow=openRow===tr.dataset.k?null:tr.dataset.k;renderTable();};tr.onclick=go;tr.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}};});
+}
+function buildTable(sep){
+  const head=["Student ID","Group","Instructor","Entered","Left","Time used (mm:ss)","Score","Max","Grade %","Result","Wrong attempts","Hints used",...ROOMS.map((r,i)=>`Room ${i+1} ${r.title}`),"Feedback received (topics with mistakes or hints)","Not reached",...SURVEY.map((x,i)=>`GAMEX ${i+1}: ${x.t}`),...SURVEY_GROUPS.map(g=>`GAMEX ${g.en} mean${g.reverse?" (reverse-scored)":""}`),"Open-ended answer","Code verified","Source"];
+  const q=v=>{v=String(v);return sep===","&&/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v.replace(/\t|\n/g," ");};
+  const lines=[head.map(q).join(sep)];
+  rowsFiltered().forEach(r=>{
+    const rs=ROOMS.map((rm,i)=>{let s=0;PUZ.forEach((p,j)=>{if(p.room===i&&r.res[j])s+=r.res[j].pts;});return s;});
+    const fb=feedbackFor(r).map(o=>`R${o.p.room+1} ${o.p.title} (${o.x.pts}/10${o.x.wrong?", "+o.x.wrong+" wrong":""}${o.x.hint?", hint":""})`).join("; ");
+    const nr=PUZ.filter((p,i)=>!r.res[i]).map(p=>p.title).join("; ");
+    lines.push([r.id,r.g,r.n,isoDT(r.s),isoDT(r.e),r.e?fmtClock(r.e-r.s):"",r.total,MAX,Math.round(r.total/MAX*100),outcomeLabel(r.o),r.res.reduce((a,x)=>a+(x?x.wrong:0),0),r.res.reduce((a,x)=>a+(x?x.hint:0),0),...rs,fb,nr,...SURVEY.map((x,i)=>r.q[i]||""),...SURVEY_GROUPS.map((g,gi)=>r.surveyed?subscale(r.q,gi).toFixed(2):""),r.c,r.verified?"yes":"EDITED",r.src].map(q).join(sep));
+  });
+  return lines.join("\n");
+}
+$("#dlCsv").addEventListener("click",async()=>{
+  if(!ROWS.size) return toast("No results to download yet");
+  const csv="﻿"+buildTable(",");
+  try{ const d=window.claude&&window.claude.use&&await window.claude.use("downloads"); if(!d) throw 0; await d.save({filename:"NURS314-neuro-escape-results.csv",data:csv}); }
+  catch(e){ if(e&&e.code==="declined") return;
+    try{ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); a.download="NURS314-neuro-escape-results.csv"; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500); if(window.claude) setTimeout(()=>copyText(buildTable("\t")),0); }
+    catch(e2){ if(await copyText(buildTable("\t"))) toast("Download isn't available here, so the table was copied. Paste it into Excel."); } }
+});
+$("#cpCsv").addEventListener("click",async()=>{ if(!ROWS.size) return toast("No results to copy yet"); if(!await copyText(buildTable("\t"))) toast("Copy isn't available in this view"); });
+
+/* ---------------- boot ---------------- */
+function start(data){
+  if(data && data.S){ S=data.S; }
+  capsReady = initCaps();
+  if(location.hash==="#instructor"){ renderTeacher(); capsReady.then(renderTeacher); return; }
+  if(S && S.outcome==="P" && remaining()>0) startGame();
+  else if(S && S.outcome!=="P" && data && data.screen==="end") (S.survey&&S.survey.done?renderEnd():renderSurvey());
+  else renderStart();
+}
+window.claude?.hot?.snapshot?.(()=>({S, screen: (!$("#s-end").hidden||!$("#s-survey").hidden)?"end":"other"}));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+
+</body>
+</html>
